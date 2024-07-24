@@ -7,16 +7,17 @@ services:
     volumes:
       - ./:/app
     working_dir: /app
-    command: sh -c "npm install && tail -f /dev/null"
+    command: bash -c "npm install && tail -f /dev/null"
     ports:
       - '3000:3000'
+      - '5555:5555'
     depends_on:
       - modubus-database
     environment:
       - DATABASE_HOST=modubus-database
       - DATABASE_PORT=3306
-      - DATABASE_USER=mysql
-      - DATABASE_PASSWORD=mysqlpw
+      - DATABASE_USER=root
+      - DATABASE_PASSWORD=rootpw
       - DATABASE_NAME=db
 
   modubus-database:
