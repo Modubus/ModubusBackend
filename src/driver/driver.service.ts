@@ -7,7 +7,7 @@ import {
 import { PrismaClient } from '@prisma/client'
 
 @Injectable()
-export class BusCompanyService {
+export class DriverService {
   constructor(private prisma: PrismaClient) {}
   // 코드에 대한 회사 존재 유무 확인 -> 버스회사의 버스 정보를 업데이트
   async findCompanyAndBusesByCode(code: string) {
