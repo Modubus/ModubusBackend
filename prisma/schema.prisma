@@ -1,0 +1,78 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum DisableType {
+  BLI /// 시각장애
+  PSC /// 지체장애
+  OLD /// 노약자
+  PRE /// 임산부
+  KID /// 어린이
+}
+
+/// 버스기사에게 전달될 요구사항
+enum Require {
+  SLOWER /// 느린 정차 필요
+  WHEELCHAIR /// 휠체어 탑승자
+
+  // TODO: 요구사항 종류 논의 필요
+}
+
+/// 버스 회사 목록
+enum CompanyName {
+  Donghae /// 동해운수
+  Jongro /// 종로운수
+
+  // TODO: 버스 회사 목록 추가
+}
+
+model User {
+  id            Int            @id @default(autoincrement())
+  username      String /// 회원가입 시 입력한 ID
+  password      String
+  email         String
+  disableType   DisableType    @default(OLD) @map("disable_type")
+  requires      UserRequire[]
+  userFavorites UserFavorite[]
+}
+
+/// 유저의 즐겨찾기 정보 (노선번호:정류장ID 1:1)
+model UserFavorite {
+  id     Int    @id @default(autoincrement())
+  routmn String /// 버스(노선) 번호
+  nodeId String @map("node_id") /// 정류장 ID
+  User   User?  @relation(fields: [userId], references: [id])
+  userId Int?   @map("user_id")
+}
+
+/// 유저의 불편에 따른 요구사항 정보
+model UserRequire {
+  id      Int     @id @default(autoincrement())
+  require Require @default(SLOWER)
+  User    User?   @relation(fields: [userId], references: [id])
+  userId  Int?    @map("user_id")
+}
+
+model Bus {
+  id           Int        @id @default(autoincrement())
+  busCompany   BusCompany @relation(fields: [busCompanyId], references: [id])
+  busCompanyId Int        @map("bus_company_id")
+  code         String
+}
+
+model BusCompany {
+  id   Int    @id @default(autoincrement())
+  name String
+  Bus  Bus[]
+}
