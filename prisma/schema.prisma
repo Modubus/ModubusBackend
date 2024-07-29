@@ -68,8 +68,7 @@ model Bus {
   id           Int        @id @default(autoincrement())
   busCompany   BusCompany @relation(fields: [busCompanyId], references: [id])
   busCompanyId Int        @map("bus_company_id")
-  code         String @unique
-  operation    Boolean
+  code         String
 }
 
 model BusCompany {
