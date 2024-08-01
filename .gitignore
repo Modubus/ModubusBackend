@@ -37,4 +37,5 @@ lerna-debug.log*
 # Environments
 .env
 
-.pem
+modubus.pem
+modubusserver.pem
