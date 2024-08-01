@@ -39,7 +39,7 @@ enum CompanyName {
 
 model User {
   id            Int            @id @default(autoincrement())
-  username      String /// 회원가입 시 입력한 ID
+  username      String         @unique() /// 회원가입 시 입력한 ID
   password      String
   email         String
   disableType   DisableType    @default(OLD) @map("disable_type")
@@ -68,7 +68,7 @@ model Bus {
   id           Int        @id @default(autoincrement())
   busCompany   BusCompany @relation(fields: [busCompanyId], references: [id])
   busCompanyId Int        @map("bus_company_id")
-  code         String @unique
+  code         String     @unique
   operation    Boolean
 }
 
