@@ -26,6 +26,8 @@ export class DriverService {
   }
 
   private buses: Bus[] = [
+    // operation은 api상에서 운행 여부 확인이 어떻게 이루어지는지 확인 필요
+    // test 데이터
     {
       id: 1,
       routnm: '92-1',
@@ -52,5 +54,13 @@ export class DriverService {
       )
     }
     return bus.routnm
+  }
+  async changeOperation(vehicleno: string) {
+    const bus = this.buses.find((bus) => bus.vehicleno === vehicleno)
+    if (!bus.operation) {
+      bus.operation = true
+    } else {
+      bus.operation = false
+    }
   }
 }
