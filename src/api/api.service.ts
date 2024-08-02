@@ -1,9 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import { HttpService } from '@nestjs/axios'
 import { lastValueFrom } from 'rxjs'
-import * as dotenv from 'dotenv'
 
-dotenv.config({ path: './.env.development' })
 
 @Injectable()
 export class ApiService {

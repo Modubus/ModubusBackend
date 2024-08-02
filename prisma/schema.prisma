@@ -70,6 +70,7 @@ model Bus {
   busCompanyId Int
   code         String @unique
   operation    Boolean
+  
 }
 
 model BusCompany {

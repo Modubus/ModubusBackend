@@ -1,4 +1,3 @@
-import { Bus } from './Types/bus'
 import {
   Injectable,
   NotAcceptableException,
@@ -8,7 +7,12 @@ import { PrismaClient } from '@prisma/client'
 
 @Injectable()
 export class DriverService {
-  constructor(private prisma: PrismaClient) {}
+  private prisma: PrismaClient
+
+  constructor() {
+    this.prisma = new PrismaClient()
+  }
+
   // 코드에 대한 회사 존재 유무 확인 -> 버스회사의 버스 정보를 업데이트
   async findCompanyAndBusesByCode(code: string) {
     const busCompany = await this.prisma.busCompany.findFirst({
@@ -25,25 +29,12 @@ export class DriverService {
     return busCompany
   }
 
-  private buses: Bus[] = [
-    // operation은 api상에서 운행 여부 확인이 어떻게 이루어지는지 확인 필요
-    // test 데이터
-    {
-      id: 1,
-      routnm: '92-1',
-      vehicleno: '30가 1101',
-      operation: true,
-    },
-    {
-      id: 2,
-      routnm: '100',
-      vehicleno: '40가 2202',
-      operation: false,
-    },
-  ]
-
   async findRoutnmByVehicleno(vehicleno: string): Promise<string> {
-    const bus = this.buses.find((bus) => bus.vehicleno === vehicleno)
+    // Prisma 클라이언트를 사용하여 버스를 검색합니다.
+    const bus = await this.prisma.bus.findFirst({
+      where: { code: vehicleno },
+    })
+
     if (!bus) {
       throw new NotFoundException( // 버스에 대한 정보가 없을 때
         `Bus with vehicle number ${vehicleno} not found`,
@@ -52,15 +43,29 @@ export class DriverService {
       throw new NotAcceptableException( // 버스가 운행 중 일때
         `${vehicleno} is operated by another person`, // 변경 예정
       )
-    }
-    return bus.routnm
-  }
-  async changeOperation(vehicleno: string) {
-    const bus = this.buses.find((bus) => bus.vehicleno === vehicleno)
-    if (!bus.operation) {
-      bus.operation = true
     } else {
-      bus.operation = false
+      // 노선 데이터는 현재 더미 데이터로 반환
+      // 실제로는 API를 통해 가져와야 할 수 있음
+      const route = '임시 노선 데이터'
+      return route
     }
+  }
+
+  async changeOperation(vehicleno: string) {
+    // Prisma 클라이언트를 사용하여 버스의 운행 상태를 업데이트합니다.
+    const bus = await this.prisma.bus.findFirst({
+      where: { code: vehicleno },
+    })
+
+    if (!bus) {
+      throw new NotFoundException(
+        `Bus with vehicle number ${vehicleno} not found`,
+      )
+    }
+
+    await this.prisma.bus.update({
+      where: { id: bus.id },
+      data: { operation: !bus.operation },
+    })
   }
 }

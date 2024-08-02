@@ -17,11 +17,11 @@ export class ApiController {
       routeId,
       cityCodesArray,
     )
-    return { statusCode: 200, message: 'OK', data: nodes } // 수정
+    return { statusCode: 200, message: '', data: nodes } // 수정
   }
 
   // 도시 코드 목록을 가져오는 엔드포인트
-  @Get('citycodes')
+  @Get('cityCodes')
   async getCityCodes() {
     const cityCodes = await this.apiService.getCityCodes()
     return { statusCode: 200, message: 'OK', data: cityCodes } // 수정
