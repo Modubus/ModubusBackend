@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common'
 import { HttpService } from '@nestjs/axios'
 import { lastValueFrom } from 'rxjs'
 
-
 @Injectable()
 export class ApiService {
   private readonly busRouteUrl: string
@@ -10,9 +9,9 @@ export class ApiService {
 
   constructor(private readonly httpService: HttpService) {
     const API_KEY = process.env.API_KEY
-    const API_URL = process.env.API_URL
-    this.busRouteUrl = `${API_URL}/getRouteAcctoBusLcList?serviceKey=${API_KEY}&_type=json`
-    this.cityCodeUrl = `${API_URL}/getCtyCodeList?serviceKey=${API_KEY}`
+    const API_BUS_URL = process.env.API_BUS_URL
+    this.busRouteUrl = `${API_BUS_URL}/getRouteAcctoBusLcList?serviceKey=${API_KEY}&_type=json`
+    this.cityCodeUrl = `${API_BUS_URL}/getCtyCodeList?serviceKey=${API_KEY}`
   } // 데이터는 json으로 고정
 
   async getBusRouteData(
@@ -28,27 +27,6 @@ export class ApiService {
       this.httpService.get(url, { timeout: 5000 }),
     )
     return response.data
-  }
-
-  async getNodesByRouteNm(
-    routeNm: string,
-    routeId: string,
-    cityCodes: string[],
-  ): Promise<{ routenm: string; nodenm: string }[]> {
-    const allData = []
-
-    for (const cityCode of cityCodes) {
-      // 이부분을 더 효율적으로 하고 싶음
-      const data = await this.getBusRouteData(routeId, cityCode)
-      if (data.response.body.items.item) {
-        const nodes = data.response.body.items.item
-        allData.push(...nodes)
-      }
-    }
-
-    return allData
-      .filter((node) => node.routenm === routeNm)
-      .map((node) => ({ routenm: node.routenm, nodenm: node.nodenm }))
   }
 
   // 도시 코드 목록을 가져오는 메서드
