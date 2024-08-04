@@ -38,7 +38,7 @@ export class UserController {
 
     // jwt 발급
     const tokens = await this.userService.issueJwtTokens(loginUserDto)
-    res.setHeader('authorization', `Bearer ${tokens.accessToken}`)
+    res.setHeader('Authorization', `Bearer ${tokens.accessToken}`)
     res.cookie(this.REFRESH_TOKEN_NAME, tokens.refreshToken)
   }
 
@@ -144,4 +144,13 @@ export class UserController {
       throw new HttpException('Unknown Error', HttpStatus.INTERNAL_SERVER_ERROR)
     }
   }
+}
+
+/**
+ * 즐겨찾기 관련 API (로그인 필요)
+ */
+@UseGuards(JwtAuthGuard)
+@Controller('user/favorite')
+export class UserFavoriteController {
+  constructor(private readonly userService: UserService) {}
 }
