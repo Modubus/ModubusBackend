@@ -1,6 +1,6 @@
 import { Prisma } from '@prisma/client'
 import { CreateUserDto, LoginUserDto, UpdateUserDto } from './dto/user.dto'
-import { UserService } from './user.service'
+import { UserFavoriteService, UserService } from './user.service'
 import {
   Body,
   Controller,
@@ -8,6 +8,8 @@ import {
   Get,
   HttpException,
   HttpStatus,
+  Param,
+  ParseIntPipe,
   Post,
   Put,
   Req,
@@ -17,6 +19,7 @@ import {
 import { RequestWithUser } from 'src/lib/class/request-with-user.class'
 import { Request, Response } from 'express'
 import { JwtAuthGuard } from 'src/lib/guard/jwt-auth.guard'
+import { UserFavoriteDto } from './dto/user-favorite.dto'
 
 @Controller('user')
 export class UserController {
@@ -152,5 +155,59 @@ export class UserController {
 @UseGuards(JwtAuthGuard)
 @Controller('user/favorite')
 export class UserFavoriteController {
-  constructor(private readonly userService: UserService) {}
+  constructor(private readonly userFavoriteService: UserFavoriteService) {}
+
+  @Get()
+  async getUserFavorites(@Req() req: RequestWithUser) {
+    try {
+      return await this.userFavoriteService.getUserFavorites(req.user.userId)
+    } catch (error) {
+      console.log(error)
+      throw new HttpException('Unknown Error', HttpStatus.INTERNAL_SERVER_ERROR)
+    }
+  }
+
+  @Post()
+  async createUserFavorite(
+    @Req() req: RequestWithUser,
+    @Body() userFavoriteDto: UserFavoriteDto,
+  ) {
+    try {
+      return await this.userFavoriteService.createUserFavorite(
+        req.user.userId,
+        userFavoriteDto,
+      )
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        throw new HttpException(
+          'An issue occurred during user creation',
+          HttpStatus.CONFLICT,
+        )
+      }
+      console.log(error)
+      throw new HttpException('Unknown Error', HttpStatus.INTERNAL_SERVER_ERROR)
+    }
+  }
+
+  @Delete('/:userFavoriteId')
+  async deleteUserFavorite(
+    @Req() req: RequestWithUser,
+    @Param('userFavoriteId', ParseIntPipe) userFavoriteId: number,
+  ) {
+    try {
+      return await this.userFavoriteService.deleteUserFavorite(
+        req.user.userId,
+        userFavoriteId,
+      )
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        throw new HttpException(
+          'User favorite does not exist',
+          HttpStatus.NOT_FOUND,
+        )
+      }
+      console.log(error)
+      throw new HttpException('Unknown Error', HttpStatus.INTERNAL_SERVER_ERROR)
+    }
+  }
 }

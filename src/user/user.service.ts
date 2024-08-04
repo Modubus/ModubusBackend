@@ -1,8 +1,9 @@
 import { PrismaClient } from '@prisma/client'
 import { CreateUserDto, LoginUserDto, UpdateUserDto } from './dto/user.dto'
-import { Injectable } from '@nestjs/common'
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common'
 import * as bcrypt from 'bcrypt'
 import { JwtService } from '@nestjs/jwt'
+import { UserFavoriteDto } from './dto/user-favorite.dto'
 
 @Injectable()
 export class UserService {
@@ -125,6 +126,38 @@ export class UserService {
     return await this.prisma.user.delete({
       where: {
         id: userId,
+      },
+    })
+  }
+}
+
+@Injectable()
+export class UserFavoriteService {
+  constructor(private readonly prisma: PrismaClient) {}
+
+  async getUserFavorites(userId: number) {
+    return await this.prisma.userFavorite.findMany({
+      where: {
+        userId,
+      },
+    })
+  }
+
+  async createUserFavorite(userId: number, userFavoriteDto: UserFavoriteDto) {
+    return await this.prisma.userFavorite.create({
+      data: {
+        userId,
+        routnm: userFavoriteDto.routnm,
+        nodeId: userFavoriteDto.nodeId,
+      },
+    })
+  }
+
+  async deleteUserFavorite(userId: number, userFavoriteId: number) {
+    return await this.prisma.userFavorite.delete({
+      where: {
+        id: userFavoriteId,
+        userId,
       },
     })
   }
