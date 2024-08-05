@@ -3,42 +3,40 @@ import { PrismaClient, DisableType, Require } from '@prisma/client'
 const prisma = new PrismaClient()
 
 async function main() {
-  // 버스 회사 데이터 삽입
-  const busCompanyDonghae = await prisma.busCompany.create({
+  // Creating Bus Company entries
+  const donghae = await prisma.busCompany.create({
     data: {
       name: 'Donghae',
+      code: 'Donghae001',
     },
   })
 
-  const busCompanyJongro = await prisma.busCompany.create({
+  const jongro = await prisma.busCompany.create({
     data: {
       name: 'Jongro',
+      code: 'Jongro001',
     },
   })
 
-  // 버스 데이터 삽입
+  // Creating Bus entries
   await prisma.bus.createMany({
     data: [
       {
-        id: 1,
-        code: '12345',
+        busCompanyId: donghae.id,
+        operation: true,
         vehicleno: '30가 1101',
         routhnm: '12-1',
-        operation: true,
-        busCompanyId: busCompanyDonghae.id,
       },
       {
-        id: 2,
-        code: '54321',
+        busCompanyId: jongro.id,
+        operation: false,
         vehicleno: '40가 2202',
         routhnm: '12-2',
-        operation: false,
-        busCompanyId: busCompanyJongro.id,
       },
     ],
   })
 
-  // 유저 데이터 삽입
+  // Creating User entries
   const user1 = await prisma.user.create({
     data: {
       username: 'user1',
@@ -57,7 +55,7 @@ async function main() {
     },
   })
 
-  // 유저 요구사항 데이터 삽입
+  // Creating UserRequire entries
   await prisma.userRequire.createMany({
     data: [
       {
@@ -71,16 +69,16 @@ async function main() {
     ],
   })
 
-  // 유저 즐겨찾기 데이터 삽입
+  // Creating UserFavorite entries
   await prisma.userFavorite.createMany({
     data: [
       {
-        routnm: '92-1',
+        routhnm: '92-1',
         nodeId: 'node123',
         userId: user1.id,
       },
       {
-        routnm: '100',
+        routhnm: '100',
         nodeId: 'node456',
         userId: user2.id,
       },
