@@ -66,8 +66,8 @@ export class DriverService {
     } else {
       // 노선 데이터를 API를 통해 가져옵니다.
       const cityCode = '25' // 대전 - 회사마다 처리 방식이 있을 것으로 예상 추후 변경
-      const routhnm = await this.nodeApiService.getRouteDetails(
-        bus.routhnm,
+      const routnm = await this.nodeApiService.getRouteDetails(
+        bus.routnm,
         cityCode,
       )
     } // json

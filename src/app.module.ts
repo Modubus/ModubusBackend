@@ -5,8 +5,8 @@ import { UserModule } from './user/user.module'
 import { BusModule } from './bus/bus.module'
 import { PrismaModule } from './prisma/prisma.module'
 import { DriverModule } from './driver/driver.module'
-import { ApiModule } from './api/bus-api/api.module'
 import { NodeApiModule } from './api/node-api/node-api.module'
+import { ApiModule } from './api/bus-api/bus.api.module'
 
 @Module({
   imports: [

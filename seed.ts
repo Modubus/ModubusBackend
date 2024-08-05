@@ -25,13 +25,13 @@ async function main() {
         busCompanyId: donghae.id,
         operation: true,
         vehicleno: '30가 1101',
-        routhnm: '12-1',
+        routnm: '12-1',
       },
       {
         busCompanyId: jongro.id,
         operation: false,
         vehicleno: '40가 2202',
-        routhnm: '12-2',
+        routnm: '12-2',
       },
     ],
   })
@@ -73,12 +73,12 @@ async function main() {
   await prisma.userFavorite.createMany({
     data: [
       {
-        routhnm: '92-1',
+        routnm: '92-1',
         nodeId: 'node123',
         userId: user1.id,
       },
       {
-        routhnm: '100',
+        routnm: '100',
         nodeId: 'node456',
         userId: user2.id,
       },

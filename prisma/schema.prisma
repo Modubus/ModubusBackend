@@ -50,7 +50,7 @@ model User {
 /// 유저의 즐겨찾기 정보 (노선번호:정류장ID 1:1)
 model UserFavorite {
   id     Int    @id @default(autoincrement())
-  routhnm String /// 버스(노선) 번호
+  routnm String /// 버스(노선) 번호
   nodeId String @map("node_id") /// 정류장 ID
   User   User?  @relation(fields: [userId], references: [id])
   userId Int?   @map("user_id")
@@ -70,7 +70,7 @@ model Bus {
   busCompanyId Int        @map("bus_company_id")
   operation    Boolean
   vehicleno    String
-  routhnm      String
+  routnm      String
 }
 
 model BusCompany {
