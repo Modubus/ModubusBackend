@@ -7,10 +7,11 @@
 
 */
 -- AlterTable
-ALTER TABLE `Bus` ADD COLUMN `operation` BOOLEAN NOT NULL;
+/*ALTER TABLE `Bus` ADD COLUMN `operation` BOOLEAN NOT NULL;
 
 -- CreateIndex
 CREATE UNIQUE INDEX `Bus_code_key` ON `Bus`(`code`);
 
 -- CreateIndex
 CREATE UNIQUE INDEX `User_username_key` ON `User`(`username`);
+*/

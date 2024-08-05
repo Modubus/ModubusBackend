@@ -3,40 +3,93 @@ import { PrismaClient, DisableType, Require } from '@prisma/client'
 const prisma = new PrismaClient()
 
 async function main() {
-  // Creating Bus Company entries
-  const donghae = await prisma.busCompany.create({
-    data: {
-      name: 'Donghae',
-      code: 'Donghae001',
-    },
-  })
+  // 기존 데이터 삭제
+  await prisma.userRequire.deleteMany({})
+  await prisma.userFavorite.deleteMany({})
+  await prisma.user.deleteMany({})
+  await prisma.bus.deleteMany({})
+  await prisma.busCompany.deleteMany({})
 
-  const jongro = await prisma.busCompany.create({
-    data: {
-      name: 'Jongro',
-      code: 'Jongro001',
-    },
-  })
+  // 버스 회사 데이터
+  const companies = [
+    { name: 'Yuseong', code: 'Yuseong' },
+    { name: 'Sinchon', code: 'Sinchon' },
+    { name: 'Shinil', code: 'Shinil' },
+    { name: 'Paju', code: 'Paju' },
+  ]
 
-  // Creating Bus entries
+  // 회사 코드 생성 및 데이터 삽입
+  const companyData = await Promise.all(
+    companies.map(async (company) => {
+      return await prisma.busCompany.create({
+        data: {
+          name: company.name,
+          code: company.code,
+        },
+      })
+    }),
+  )
+
+  const yuseong = companyData.find((company) => company.name === 'Yuseong')
+  const sinchon = companyData.find((company) => company.name === 'Sinchon')
+  const shinil = companyData.find((company) => company.name === 'Shinil')
+  const paju = companyData.find((company) => company.name === 'Paju')
+
+  // 버스 데이터 삽입
   await prisma.bus.createMany({
     data: [
       {
-        busCompanyId: donghae.id,
+        busCompanyId: yuseong.id,
         operation: true,
-        vehicleno: '30가 1101',
-        routnm: '12-1',
+        vehicleno: '서울 70 사 7781',
+        routnm: '7016',
       },
       {
-        busCompanyId: jongro.id,
-        operation: false,
-        vehicleno: '40가 2202',
-        routnm: '12-2',
+        busCompanyId: yuseong.id,
+        operation: true,
+        vehicleno: '서울 74 사 7241',
+        routnm: '7013A',
+      },
+      {
+        busCompanyId: sinchon.id,
+        operation: true,
+        vehicleno: '서울 74 사 7392',
+        routnm: '750B',
+      },
+      {
+        busCompanyId: sinchon.id,
+        operation: true,
+        vehicleno: '서울 70 사 7780',
+        routnm: '750A',
+      },
+      {
+        busCompanyId: shinil.id,
+        operation: true,
+        vehicleno: '경기 76 자 1629',
+        routnm: '92',
+      },
+      {
+        busCompanyId: shinil.id,
+        operation: true,
+        vehicleno: '경기 76 자 1853',
+        routnm: '9710',
+      },
+      {
+        busCompanyId: paju.id,
+        operation: true,
+        vehicleno: '경기 76 자 2060',
+        routnm: 'G7625',
+      },
+      {
+        busCompanyId: paju.id,
+        operation: true,
+        vehicleno: '경기 76 자 1983',
+        routnm: 'G7426',
       },
     ],
   })
 
-  // Creating User entries
+  // 유저 데이터 삽입
   const user1 = await prisma.user.create({
     data: {
       username: 'user1',
@@ -55,7 +108,7 @@ async function main() {
     },
   })
 
-  // Creating UserRequire entries
+  // 유저 요구사항 데이터 삽입
   await prisma.userRequire.createMany({
     data: [
       {
@@ -69,7 +122,7 @@ async function main() {
     ],
   })
 
-  // Creating UserFavorite entries
+  // 유저 즐겨찾기 데이터 삽입
   await prisma.userFavorite.createMany({
     data: [
       {

@@ -12,7 +12,7 @@ import { DriverService } from './driver.service'
 export class DriverController {
   constructor(private readonly driverService: DriverService) {}
 
-  @Get('code')
+  @Post('code')
   async findCompanyAndBusesByCode(@Body('code') code: string) {
     try {
       return await this.driverService.findCompanyAndBusesByCode(code)

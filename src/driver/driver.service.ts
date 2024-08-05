@@ -65,7 +65,7 @@ export class DriverService {
       )
     } else {
       // 노선 데이터를 API를 통해 가져옵니다.
-      const cityCode = '25' // 대전 - 회사마다 처리 방식이 있을 것으로 예상 추후 변경
+      const cityCode = '1613000' // 대전 - 회사마다 처리 방식이 있을 것으로 예상 추후 변경
       const routnm = await this.nodeApiService.getRouteDetails(
         bus.routnm,
         cityCode,
@@ -74,18 +74,27 @@ export class DriverService {
   }
 
   async changeOperation(vehicleno: string) {
-    // Prisma를 사용하여 버스의 운행 상태를 업데이트합니다.
+    // Prisma를 사용하여 버스를 검색합니다.
     const bus = await this.prisma.bus.findFirst({
       where: { vehicleno: vehicleno },
     })
+
     if (!bus) {
+      console.log(`Bus with vehicle number ${vehicleno} not found`)
       throw new NotFoundException(
         `Bus with vehicle number ${vehicleno} not found`,
       )
     }
-    await this.prisma.bus.update({
+
+    // 버스의 현재 운행 상태를 반전시킵니다.
+    const updatedBus = await this.prisma.bus.update({
       where: { id: bus.id },
       data: { operation: !bus.operation },
     })
+
+    console.log(
+      `Bus with vehicle number ${vehicleno} operation status updated to ${!bus.operation}`,
+    )
+    return updatedBus
   }
 }

@@ -31,9 +31,10 @@ enum Require {
 
 /// 버스 회사 목록
 enum CompanyName {
-  Donghae /// 동해운수
-  Jongro /// 종로운수
-
+  Yuseong  /// 유성운수
+  Sinchon  /// 신촌교통
+  Shinil ///신일여객
+  Paju ///파주여객
   // TODO: 버스 회사 목록 추가
 }
 

@@ -10,7 +10,7 @@ export class NodeApiService {
   private readonly seoulIdByRoute: string
   private readonly getSeoulRoute: string
   constructor(private readonly httpService: HttpService) {
-    const API_KEY = process.env.API_KEY
+    const API_KEY = process.env.API_TEMP_KEY
     const API_NODE_URL = process.env.API_NODE_URL
     const SEOUL_NODE_URL = process.env.SEOUL_NODE_URL
 
@@ -46,7 +46,7 @@ export class NodeApiService {
   async getRouteIdSeoul(routeNo: string) {
     // 서울 노선 번호로 노선 id 접근
     // seoul 버스 api 승인 x 추후 개발
-    const url = `${this.seoulIdByRoute}&strSrch=${routeNo}&json`
+    const url = `${this.seoulIdByRoute}&strSrch=${routeNo}`
     const response = await lastValueFrom(
       this.httpService.get(url).pipe(map((response) => response.data)),
     )
@@ -61,7 +61,7 @@ export class NodeApiService {
     // 서울 노선id로 노선정보 접근 후 반환
     // seoul 버스 api 승인 x 추후 확인
     const routeIds = await this.getRouteIdSeoul(routeNo)
-    const url = `${this.getSeoulRoute}&busRouteId=${routeIds}&json`
+    const url = `${this.getSeoulRoute}&busRouteId=${routeIds}`
     const response = await lastValueFrom(
       this.httpService.get(url).pipe(map((response) => response.data)),
     )
