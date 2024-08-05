@@ -20,12 +20,18 @@ async function main() {
   await prisma.bus.createMany({
     data: [
       {
-        code: '30가 1101',
+        id: 1,
+        code: '12345',
+        vehicleno: '30가 1101',
+        routhnm: '12-1',
         operation: true,
         busCompanyId: busCompanyDonghae.id,
       },
       {
-        code: '40가 2202',
+        id: 2,
+        code: '54321',
+        vehicleno: '40가 2202',
+        routhnm: '12-2',
         operation: false,
         busCompanyId: busCompanyJongro.id,
       },
@@ -69,12 +75,12 @@ async function main() {
   await prisma.userFavorite.createMany({
     data: [
       {
-        routmn: '92-1',
+        routnm: '92-1',
         nodeId: 'node123',
         userId: user1.id,
       },
       {
-        routmn: '100',
+        routnm: '100',
         nodeId: 'node456',
         userId: user2.id,
       },

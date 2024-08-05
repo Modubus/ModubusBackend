@@ -5,8 +5,7 @@ import {
 } from '@nestjs/common'
 import { PrismaClient } from '@prisma/client'
 import { NodeApiService } from '../api/node-api/node-api.service'
-import { HttpService, HttpModule } from '@nestjs/axios'
-import { lastValueFrom } from 'rxjs'
+import { HttpService } from '@nestjs/axios'
 
 @Injectable()
 export class DriverService {
@@ -22,39 +21,40 @@ export class DriverService {
   // 버스코드에 대한 회사 존재 유무 확인 -> 버스회사의 버스 정보를 업데이트
   async findCompanyAndBusesByCode(code: string) {
     const busCompany = await this.prisma.busCompany.findFirst({
-      where: { Bus: { some: { code } } },
+      where: { code: code },
       include: {
         Bus: true,
       },
     })
-
     if (!busCompany) {
       throw new NotFoundException(`Bus company with code ${code} not found`)
     }
-
     return busCompany
   }
 
   async checkBusNumber(vehicleno: string) {
     const bus = await this.prisma.bus.findFirst({
-      where: { code: vehicleno },
+      where: { vehicleno: vehicleno },
     })
-
     if (!bus) {
       throw new NotFoundException(
         `Bus with vehicle number ${vehicleno} not found`,
-      )
+      ) // 운행 여부 확인
     }
 
     return { message: `Bus with vehicle number ${vehicleno} found.` }
   }
 
-  async findRoutnmByVehicleno(vehicleno: string): Promise<string> {
+  // 1번 차량번호 -> 노선 번호를 찾는다 // prima 검색
+  // 노선 번호로 -> 노선 아이디를 찾는다 // node-api 검색
+  // 노선 아이디로 -> 노선 정보를 찾는다 // node-api 검색
+  //상행 하행 여부 확인 - 따로 api 작성?
+  async findRoutnmByVehicleno(vehicleno: string) {
     // Prisma 사용하여 버스를 검색합니다.
     const bus = await this.prisma.bus.findFirst({
-      where: { code: vehicleno },
+      // 버스실제 번호랑 버스 차량 번호
+      where: { vehicleno: vehicleno }, // 이렇게 하면 느려질까요?
     })
-
     if (!bus) {
       throw new NotFoundException(
         `Bus with vehicle number ${vehicleno} not found`,
@@ -65,27 +65,24 @@ export class DriverService {
       )
     } else {
       // 노선 데이터를 API를 통해 가져옵니다.
-      const cityCode = '25' // 대전 // 도시 코드가 필요해서 사용자 위치에 맞는 도시코드를 찾아올 방법 추후에 생각 예정
-      const routeDetails = await this.nodeApiService.getRouteDetails(
-        bus.code,
+      const cityCode = '25' // 대전 - 회사마다 처리 방식이 있을 것으로 예상 추후 변경
+      const routhnm = await this.nodeApiService.getRouteDetails(
+        bus.routhnm,
         cityCode,
       )
-      return routeDetails.join(', ') // 경로 데이터를 문자열로 반환합니다.
-    }
+    } // json
   }
 
   async changeOperation(vehicleno: string) {
     // Prisma를 사용하여 버스의 운행 상태를 업데이트합니다.
     const bus = await this.prisma.bus.findFirst({
-      where: { code: vehicleno },
+      where: { vehicleno: vehicleno },
     })
-
     if (!bus) {
       throw new NotFoundException(
         `Bus with vehicle number ${vehicleno} not found`,
       )
     }
-
     await this.prisma.bus.update({
       where: { id: bus.id },
       data: { operation: !bus.operation },

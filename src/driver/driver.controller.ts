@@ -1,30 +1,59 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common'
+import {
+  Body,
+  Controller,
+  Get,
+  HttpException,
+  HttpStatus,
+  Post,
+} from '@nestjs/common'
 import { DriverService } from './driver.service'
 
 @Controller('driver')
 export class DriverController {
   constructor(private readonly driverService: DriverService) {}
-  @Post('code/:code')
-  async findCompanyAndBusesByCode(@Param('code') code: string) {
-    return this.driverService.findCompanyAndBusesByCode(code)
+
+  @Get('code')
+  async findCompanyAndBusesByCode(@Body('code') code: string) {
+    try {
+      return await this.driverService.findCompanyAndBusesByCode(code)
+    } catch (error) {
+      console.log(error)
+      throw new HttpException('Unknown Error', HttpStatus.INTERNAL_SERVER_ERROR)
+    }
   }
 
-  @Post('bus-num/:vehicleno')
+  @Get('bus-num')
   async checkBusNumber(@Body('vehicleno') vehicleno: string) {
-    return this.driverService.checkBusNumber(vehicleno)
+    try {
+      return await this.driverService.checkBusNumber(vehicleno)
+    } catch (error) {
+      console.log(error)
+      throw new HttpException('Unknown Error', HttpStatus.INTERNAL_SERVER_ERROR)
+    }
   }
-  // 버스 코드 받았는지 확인 ->버스가 있는지 확인-> 버스에 대한 운행 확인-> 버스 경로 정보 업데이트
-  @Post('bus-end/:vehicleno')
-  async changeOperation(@Param('vehicleno') vehicleno: string) {
+
+  @Post('bus-end')
+  async changeOperation(@Body('vehicleno') vehicleno: string) {
     return this.driverService.changeOperation(vehicleno)
   }
 
-  @Get('/driver/station-list')
-  async findRoutnmByVehicleno(@Param('vehicleno') vehicleno: string) {
-    // body가 맞나 param이 맞나
-    return this.driverService.findRoutnmByVehicleno(vehicleno)
+  @Get('station-list')
+  async findRoutnmByVehicleno(@Body('vehicleno') vehicleno: string) {
+    try {
+      return await this.driverService.findRoutnmByVehicleno(vehicleno)
+    } catch (error) {
+      console.log(error)
+      throw new HttpException('Unknown Error', HttpStatus.INTERNAL_SERVER_ERROR)
+    }
   }
-
-  @Get('/driver/bus-info')
-  getBusInfo() {}
+  // 추후에 개발 예정
+  @Get('bus-info')
+  async getBusInfo() {
+    try {
+      //return await this.driverService.getBusInfo()
+    } catch (error) {
+      console.log(error)
+      throw new HttpException('Unknown Error', HttpStatus.INTERNAL_SERVER_ERROR)
+    }
+  }
 }

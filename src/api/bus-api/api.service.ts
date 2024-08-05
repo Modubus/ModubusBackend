@@ -21,7 +21,7 @@ export class ApiService {
     numOfRows: number = 1000,
     // 1. 마지막 페이지 작성 - 정확한 정보를 찾아야함
     // 2. 페이지네이션 방식 - 데이터 받아오는 것이 오래걸림
-  ): Promise<any> {
+  ) {
     const url = `${this.busRouteUrl}&routeId=${routeId}&cityCode=${cityCode}&pageNo=${pageNo}&numOfRows=${numOfRows}`
     const response = await lastValueFrom(
       this.httpService.get(url, { timeout: 5000 }),
