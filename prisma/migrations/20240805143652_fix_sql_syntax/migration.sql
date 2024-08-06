@@ -22,10 +22,6 @@ ALTER TABLE `Bus` DROP COLUMN `code`,
 -- AlterTable
 ALTER TABLE `BusCompany` ADD COLUMN `code` VARCHAR(191) NOT NULL;
 
--- AlterTable
-ALTER TABLE `UserFavorite` DROP COLUMN `routmn`,
-    ADD COLUMN `routnm` VARCHAR(191) NOT NULL;
-
 -- CreateIndex
 CREATE UNIQUE INDEX `BusCompany_code_key` ON `BusCompany`(`code`);
 
