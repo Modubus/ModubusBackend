@@ -1,5 +1,5 @@
 import { HttpService } from '@nestjs/axios'
-import { Injectable } from '@nestjs/common'
+import { Injectable, HttpException, HttpStatus } from '@nestjs/common'
 import { lastValueFrom } from 'rxjs'
 import { map } from 'rxjs/operators'
 import * as xml2js from 'xml2js'
@@ -31,101 +31,119 @@ export class NodeApiService {
       const response = await lastValueFrom(
         this.httpService.get(url).pipe(map((response) => response.data)),
       )
-      // console.log('response:', response)
 
       const items = response.response.body.items.item
-      // console.log('items:', items)
-
       const filteredItems = items.filter(
         (item) => item.routeno.toString() === routeNo,
       )
-      // console.log('filteredItems:', filteredItems)
 
       return filteredItems
     } catch (error) {
       console.error('Error fetching route data:', error)
-      return null
+      throw new HttpException(
+        'Failed to fetch route data.',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      )
     }
   }
 
   // 노선 아이디로 노선경로 불러오기
   async getRouteByRouteId(routeId: string, cityCode: string) {
-    let count: string = '0'
-    const url_count = `${this.getRoute}&pageNo=1&numOfRows=${count}&_type=json&cityCode=${cityCode}&routeId=${routeId}`
-    const response_count = await lastValueFrom(
-      this.httpService.get(url_count).pipe(map((response) => response.data)),
-    )
-    count = response_count.response.body.totalCount // 전체 경로 수
-    // 경로 추출
-    const url = `${this.getRoute}&pageNo=1&numOfRows=${count}&_type=json&cityCode=${cityCode}&routeId=${routeId}`
-    const response = await lastValueFrom(
-      this.httpService.get(url).pipe(map((response) => response.data)),
-    )
-    const route = response.response.body.items.item.map((item) => ({
-      nodenm: item.nodenm,
-    }))
-    // console.log('route:', route)
+    try {
+      let count: string = '0'
+      const url_count = `${this.getRoute}&pageNo=1&numOfRows=${count}&_type=json&cityCode=${cityCode}&routeId=${routeId}`
+      const response_count = await lastValueFrom(
+        this.httpService.get(url_count).pipe(map((response) => response.data)),
+      )
+      count = response_count.response.body.totalCount // 전체 경로 수
 
-    return route
+      const url = `${this.getRoute}&pageNo=1&numOfRows=${count}&_type=json&cityCode=${cityCode}&routeId=${routeId}`
+      const response = await lastValueFrom(
+        this.httpService.get(url).pipe(map((response) => response.data)),
+      )
+      const route = response.response.body.items.item.map((item) => ({
+        nodenm: item.nodenm,
+      }))
+
+      return route
+    } catch (error) {
+      console.error('Error fetching route by route ID:', error)
+      throw new HttpException(
+        'Failed to fetch route by route ID.',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      )
+    }
   }
 
   // 노선번호로 서울 경로 id 찾기
   async getRouteIdSeoul(routeNo: string) {
-    const url = `${this.seoulIdByRoute}&strSrch=${routeNo}`
-    const response = await lastValueFrom(
-      this.httpService.get(url).pipe(map((response) => response.data)),
-    )
+    try {
+      const url = `${this.seoulIdByRoute}&strSrch=${routeNo}`
+      const response = await lastValueFrom(
+        this.httpService.get(url).pipe(map((response) => response.data)),
+      )
 
-    const parsedData = await xml2js.parseStringPromise(response)
-    console.log('parsedData:', parsedData)
+      const parsedData = await xml2js.parseStringPromise(response)
+      const routeIds =
+        parsedData.ServiceResult.msgBody[0].itemList[0].busRouteId[0]
 
-    const routeIds =
-      parsedData.ServiceResult.msgBody[0].itemList[0].busRouteId[0]
-    console.log('routeIds:', routeIds)
-
-    return routeIds
+      return routeIds
+    } catch (error) {
+      console.error('Error fetching Seoul route ID:', error)
+      throw new HttpException(
+        'Failed to fetch Seoul route ID.',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      )
+    }
   }
 
   // 서울 노선아이디로 경로 불러오기
   async getSeoulRouteById(routeId: string) {
-    const url = `${this.getSeoulRoute}&busRouteId=${routeId}`
-    const response = await lastValueFrom(
-      this.httpService.get(url).pipe(map((response) => response.data)),
-    )
+    try {
+      const url = `${this.getSeoulRoute}&busRouteId=${routeId}`
+      const response = await lastValueFrom(
+        this.httpService.get(url).pipe(map((response) => response.data)),
+      )
 
-    const parsedData = await xml2js.parseStringPromise(response)
-    console.log('parsedData:', parsedData)
+      const parsedData = await xml2js.parseStringPromise(response)
+      const seoulRoute = parsedData.ServiceResult.msgBody[0].itemList.map(
+        (item) => item.stationNm[0],
+      )
 
-    const seoulRoute = parsedData.ServiceResult.msgBody[0].itemList.map(
-      (item) => item.stationNm[0],
-    )
-    console.log('seoulRoute:', seoulRoute)
-
-    return seoulRoute
+      return seoulRoute
+    } catch (error) {
+      console.error('Error fetching Seoul route by ID:', error)
+      throw new HttpException(
+        'Failed to fetch Seoul route by ID.',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      )
+    }
   }
 
   // 도시 코드로 서울과 타지역 구분지어서 경로 반환하기
   async getRouteDetails(routeNo: string, cityCode: string) {
-    if (cityCode === '11') {
-      const routeIds = await this.getRouteIdSeoul(routeNo)
-      console.log('routeIds2:', routeIds)
+    try {
+      if (cityCode === '11') {
+        const routeIds = await this.getRouteIdSeoul(routeNo)
+        const stopByRoute = await this.getSeoulRouteById(routeIds)
 
-      const stopByRoute = await this.getSeoulRouteById(routeIds)
-      console.log('stopByRoute:', stopByRoute)
+        return { routeNo: routeNo, stops: stopByRoute }
+      }
 
-      return { routeNo: routeNo, stops: stopByRoute }
+      const busInfo = await this.getRouteIdByRouteNo(routeNo, cityCode)
+      const stopByRoute = await this.getRouteByRouteId(
+        busInfo[0].routeid,
+        cityCode,
+      )
+      const busStops = stopByRoute.map((item) => item.nodenm)
+
+      return { routeNo: routeNo, stops: busStops }
+    } catch (error) {
+      console.error('Error fetching route details:', error)
+      throw new HttpException(
+        'Failed to fetch route details.',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      )
     }
-
-    const busInfo = await this.getRouteIdByRouteNo(routeNo, cityCode)
-    // console.log('busInfo:', busInfo)
-
-    const stopByRoute = await this.getRouteByRouteId(
-      busInfo[0].routeid,
-      cityCode,
-    )
-    const busStops = stopByRoute.map((item) => item.nodenm)
-    // console.log('busStops:', busStops)
-
-    return { routeNo: routeNo, stops: busStops }
   }
 }

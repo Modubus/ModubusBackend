@@ -20,7 +20,7 @@ async function main() {
 
   // 회사 코드 생성 및 데이터 삽입
   const companyData = await Promise.all(
-    // 나중에 cityCode 추가 예정
+    // 나중에 cityode 추가 예정
     companies.map(async (company) => {
       return await prisma.busCompany.create({
         data: {
