@@ -2,6 +2,7 @@ import { HttpService } from '@nestjs/axios'
 import { Injectable } from '@nestjs/common'
 import { lastValueFrom } from 'rxjs'
 import { map } from 'rxjs/operators'
+import * as xml2js from 'xml2js'
 
 @Injectable()
 export class NodeApiService {
@@ -9,83 +10,122 @@ export class NodeApiService {
   private readonly getRoute: string
   private readonly seoulIdByRoute: string
   private readonly getSeoulRoute: string
-  constructor(private readonly httpService: HttpService) {
-    const API_KEY = process.env.API_TEMP_KEY
-    const API_NODE_URL = process.env.API_NODE_URL
-    const SEOUL_NODE_URL = process.env.SEOUL_NODE_URL
 
+  // 사용한 API 경로
+  constructor(private readonly httpService: HttpService) {
+    const API_KEY = process.env.API_KEY
+    const API_NODE_URL = process.env.API_NODE_URL // json
+    const SEOUL_NODE_URL = process.env.SEOUL_NODE_URL // xml
+    const API_TEMP_KEY = process.env.API_TEMP_KEY
     this.nodeIdByroutnm = `${API_NODE_URL}/getRouteNoList?serviceKey=${API_KEY}`
     this.getRoute = `${API_NODE_URL}/getRouteAcctoThrghSttnList?serviceKey=${API_KEY}`
-    this.seoulIdByRoute = `${SEOUL_NODE_URL}/getBusRouteList?serviceKey=${API_KEY}`
-    this.getSeoulRoute = `${SEOUL_NODE_URL}/getStaionByRoute?serviceKey=${API_KEY}`
-  } // 기본 api경로
+    this.seoulIdByRoute = `${SEOUL_NODE_URL}/getBusRouteList?serviceKey=${API_TEMP_KEY}`
+    this.getSeoulRoute = `${SEOUL_NODE_URL}/getStaionByRoute?serviceKey=${API_TEMP_KEY}`
+  }
 
-  async getRouteIdByRouteNo(routeNo: string, cityCode: string) {
+  // 노선번호로 노선아이디 찾기
+  async getRouteIdByRouteNo(routeNo: string, cityCode: string): Promise<any> {
     const url = `${this.nodeIdByroutnm}&pageNo=1&numOfRows=10&_type=json&cityCode=${cityCode}&routeNo=${routeNo}`
-    const response = await lastValueFrom(
-      this.httpService.get(url).pipe(map((response) => response.data)),
-    )
-    return response.response.body.items.item.find(
-      // 겹치는 routeno를 가진 데이터에서 같은 번호 추출
-      (item) => item.routeno == routeNo,
-    )
-  } // 노선 번호로 노선 id 접근
 
+    try {
+      const response = await lastValueFrom(
+        this.httpService.get(url).pipe(map((response) => response.data)),
+      )
+      // console.log('response:', response)
+
+      const items = response.response.body.items.item
+      // console.log('items:', items)
+
+      const filteredItems = items.filter(
+        (item) => item.routeno.toString() === routeNo,
+      )
+      // console.log('filteredItems:', filteredItems)
+
+      return filteredItems
+    } catch (error) {
+      console.error('Error fetching route data:', error)
+      return null
+    }
+  }
+
+  // 노선 아이디로 노선경로 불러오기
   async getRouteByRouteId(routeId: string, cityCode: string) {
-    // 노선id로 노선정보 접근 후 반환
-    const url = `${this.getRoute}&pageNo=1&numOfRows=10&_type=json&cityCode=${cityCode}&routeId=${routeId}`
+    let count: string = '0'
+    const url_count = `${this.getRoute}&pageNo=1&numOfRows=${count}&_type=json&cityCode=${cityCode}&routeId=${routeId}`
+    const response_count = await lastValueFrom(
+      this.httpService.get(url_count).pipe(map((response) => response.data)),
+    )
+    count = response_count.response.body.totalCount // 전체 경로 수
+    // 경로 추출
+    const url = `${this.getRoute}&pageNo=1&numOfRows=${count}&_type=json&cityCode=${cityCode}&routeId=${routeId}`
     const response = await lastValueFrom(
       this.httpService.get(url).pipe(map((response) => response.data)),
     )
     const route = response.response.body.items.item.map((item) => ({
       nodenm: item.nodenm,
     }))
+    // console.log('route:', route)
+
     return route
   }
 
+  // 노선번호로 서울 경로 id 찾기
   async getRouteIdSeoul(routeNo: string) {
-    // 서울 노선 번호로 노선 id 접근
-    // seoul 버스 api 승인 x 추후 개발
     const url = `${this.seoulIdByRoute}&strSrch=${routeNo}`
     const response = await lastValueFrom(
       this.httpService.get(url).pipe(map((response) => response.data)),
     )
-    const routeIds = response.ServiceResult.msgBody.itemList.map(
-      (item) => item.busRouteId,
-    )
+
+    const parsedData = await xml2js.parseStringPromise(response)
+    console.log('parsedData:', parsedData)
+
+    const routeIds =
+      parsedData.ServiceResult.msgBody[0].itemList[0].busRouteId[0]
+    console.log('routeIds:', routeIds)
 
     return routeIds
   }
 
-  async getSeoulRouteById(routeNo: string) {
-    // 서울 노선id로 노선정보 접근 후 반환
-    // seoul 버스 api 승인 x 추후 확인
-    const routeIds = await this.getRouteIdSeoul(routeNo)
-    const url = `${this.getSeoulRoute}&busRouteId=${routeIds}`
+  // 서울 노선아이디로 경로 불러오기
+  async getSeoulRouteById(routeId: string) {
+    const url = `${this.getSeoulRoute}&busRouteId=${routeId}`
     const response = await lastValueFrom(
       this.httpService.get(url).pipe(map((response) => response.data)),
     )
-    const seoulRoute = response.ServiceResult.msgBody.itemList.map(
-      (item) => item.stationNm,
+
+    const parsedData = await xml2js.parseStringPromise(response)
+    console.log('parsedData:', parsedData)
+
+    const seoulRoute = parsedData.ServiceResult.msgBody[0].itemList.map(
+      (item) => item.stationNm[0],
     )
+    console.log('seoulRoute:', seoulRoute)
+
     return seoulRoute
   }
 
+  // 도시 코드로 서울과 타지역 구분지어서 경로 반환하기
   async getRouteDetails(routeNo: string, cityCode: string) {
-    // 서울시의 버스 노선 정보 조회
     if (cityCode === '11') {
-      // 서울 도시코드 11번
       const routeIds = await this.getRouteIdSeoul(routeNo)
+      console.log('routeIds2:', routeIds)
+
       const stopByRoute = await this.getSeoulRouteById(routeIds)
-      const busStops = stopByRoute.map((item) => item.stationNm)
-      return { routeNo: routeNo, stops: busStops }
+      console.log('stopByRoute:', stopByRoute)
+
+      return { routeNo: routeNo, stops: stopByRoute }
     }
 
-    // 그 외 지역의 버스 노선 정보 조회
-    const routeNumberAPI = await this.getRouteIdByRouteNo(routeNo, cityCode)
-    const routeId = routeNumberAPI.id
-    const stopByRoute = await this.getRouteByRouteId(routeId, cityCode)
+    const busInfo = await this.getRouteIdByRouteNo(routeNo, cityCode)
+    // console.log('busInfo:', busInfo)
+
+    const stopByRoute = await this.getRouteByRouteId(
+      busInfo[0].routeid,
+      cityCode,
+    )
     const busStops = stopByRoute.map((item) => item.nodenm)
+    // console.log('busStops:', busStops)
+
     return { routeNo: routeNo, stops: busStops }
   }
 }

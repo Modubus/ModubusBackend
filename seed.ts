@@ -20,6 +20,7 @@ async function main() {
 
   // 회사 코드 생성 및 데이터 삽입
   const companyData = await Promise.all(
+    // 나중에 cityCode 추가 예정
     companies.map(async (company) => {
       return await prisma.busCompany.create({
         data: {
@@ -41,49 +42,49 @@ async function main() {
       {
         busCompanyId: yuseong.id,
         operation: true,
-        vehicleno: '서울 70 사 7781',
+        vehicleno: '서울70사7781',
         routnm: '7016',
       },
       {
         busCompanyId: yuseong.id,
         operation: true,
-        vehicleno: '서울 74 사 7241',
+        vehicleno: '서울74사7241',
         routnm: '7013A',
       },
       {
         busCompanyId: sinchon.id,
         operation: true,
-        vehicleno: '서울 74 사 7392',
+        vehicleno: '서울74사7392',
         routnm: '750B',
       },
       {
         busCompanyId: sinchon.id,
         operation: true,
-        vehicleno: '서울 70 사 7780',
+        vehicleno: '서울70사7780',
         routnm: '750A',
       },
       {
         busCompanyId: shinil.id,
         operation: true,
-        vehicleno: '경기 76 자 1629',
+        vehicleno: '경기76자1629',
         routnm: '92',
       },
       {
         busCompanyId: shinil.id,
         operation: true,
-        vehicleno: '경기 76 자 1853',
+        vehicleno: '경기76자1853',
         routnm: '9710',
       },
       {
         busCompanyId: paju.id,
         operation: true,
-        vehicleno: '경기 76 자 2060',
+        vehicleno: '경기76자2060',
         routnm: 'G7625',
       },
       {
         busCompanyId: paju.id,
         operation: true,
-        vehicleno: '경기 76 자 1983',
+        vehicleno: '경기76자1983',
         routnm: 'G7426',
       },
     ],

@@ -1,10 +1,11 @@
 import {
-  Body,
   Controller,
   Get,
+  Post,
   HttpException,
   HttpStatus,
-  Post,
+  Body,
+  Query,
 } from '@nestjs/common'
 import { DriverService } from './driver.service'
 
@@ -23,9 +24,27 @@ export class DriverController {
   }
 
   @Get('bus-num')
-  async checkBusNumber(@Body('vehicleno') vehicleno: string) {
+  async checkBusNumber(@Query('vehicleno') vehicleno: string) {
     try {
-      return await this.driverService.checkBusNumber(vehicleno)
+      const result = await this.driverService.checkBusNumber(vehicleno)
+      return result
+    } catch (error) {
+      console.log(error)
+      throw new HttpException('Unknown Error', HttpStatus.INTERNAL_SERVER_ERROR)
+    }
+  }
+
+  @Get('station-list')
+  async findRoutnmByVehicleno(
+    @Query('vehicleno') vehicleno: string,
+    @Query('cityCode') cityCode: string, // 입력 받을지 code를 받을때 자동으로 사용자가 가지고 있을지 생각해야함
+  ) {
+    try {
+      const result = await this.driverService.findRoutnmByVehicleno(
+        vehicleno,
+        cityCode,
+      )
+      return result
     } catch (error) {
       console.log(error)
       throw new HttpException('Unknown Error', HttpStatus.INTERNAL_SERVER_ERROR)
@@ -37,15 +56,6 @@ export class DriverController {
     return this.driverService.changeOperation(vehicleno)
   }
 
-  @Get('station-list')
-  async findRoutnmByVehicleno(@Body('vehicleno') vehicleno: string) {
-    try {
-      return await this.driverService.findRoutnmByVehicleno(vehicleno)
-    } catch (error) {
-      console.log(error)
-      throw new HttpException('Unknown Error', HttpStatus.INTERNAL_SERVER_ERROR)
-    }
-  }
   // 추후에 개발 예정
   @Get('bus-info')
   async getBusInfo() {

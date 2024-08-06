@@ -71,12 +71,13 @@ model Bus {
   busCompanyId Int        @map("bus_company_id")
   operation    Boolean
   vehicleno    String
-  routnm      String
+  routnm       String
 }
 
 model BusCompany {
-  id   Int    @id @default(autoincrement())
-  name String
-  Bus  Bus[]
-  code String @unique
+  id       Int    @id @default(autoincrement())
+  name     String
+  Bus      Bus[]
+  code     String @unique
+  cityCode String
 }

@@ -1,7 +1,7 @@
 import { PrismaClient } from '@prisma/client'
 import { CreateUserDto, LoginUserDto, UpdateUserDto } from './dto/user.dto'
 import { Injectable } from '@nestjs/common'
-import * as bcrypt from 'bcrypt'
+import * as bcrypt from 'bcryptjs'
 import { JwtService } from '@nestjs/jwt'
 
 @Injectable()
