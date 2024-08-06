@@ -1,6 +1,10 @@
-import { Prisma } from '@prisma/client'
+import { Prisma, Require } from '@prisma/client'
 import { CreateUserDto, LoginUserDto, UpdateUserDto } from './dto/user.dto'
-import { UserService } from './user.service'
+import {
+  UserFavoriteService,
+  UserNeedsService,
+  UserService,
+} from './user.service'
 import {
   Body,
   Controller,
@@ -8,6 +12,8 @@ import {
   Get,
   HttpException,
   HttpStatus,
+  Param,
+  ParseIntPipe,
   Post,
   Put,
   Req,
@@ -17,6 +23,7 @@ import {
 import { RequestWithUser } from 'src/lib/class/request-with-user.class'
 import { Request, Response } from 'express'
 import { JwtAuthGuard } from 'src/lib/guard/jwt-auth.guard'
+import { UserFavoriteDto } from './dto/user-favorite.dto'
 
 @Controller('user')
 export class UserController {
@@ -38,7 +45,7 @@ export class UserController {
 
     // jwt 발급
     const tokens = await this.userService.issueJwtTokens(loginUserDto)
-    res.setHeader('authorization', `Bearer ${tokens.accessToken}`)
+    res.setHeader('Authorization', `Bearer ${tokens.accessToken}`)
     res.cookie(this.REFRESH_TOKEN_NAME, tokens.refreshToken)
   }
 
@@ -141,6 +148,139 @@ export class UserController {
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
         throw new HttpException('User does not exist', HttpStatus.NOT_FOUND)
       }
+      throw new HttpException('Unknown Error', HttpStatus.INTERNAL_SERVER_ERROR)
+    }
+  }
+}
+
+/**
+ * 즐겨찾기 관련 API (로그인 필요)
+ */
+@UseGuards(JwtAuthGuard)
+@Controller('user/favorite')
+export class UserFavoriteController {
+  constructor(private readonly userFavoriteService: UserFavoriteService) {}
+
+  @Get()
+  async getUserFavorites(@Req() req: RequestWithUser) {
+    try {
+      return await this.userFavoriteService.getUserFavorites(req.user.userId)
+    } catch (error) {
+      console.log(error)
+      throw new HttpException('Unknown Error', HttpStatus.INTERNAL_SERVER_ERROR)
+    }
+  }
+
+  @Post()
+  async createUserFavorite(
+    @Req() req: RequestWithUser,
+    @Body() userFavoriteDto: UserFavoriteDto,
+  ) {
+    try {
+      return await this.userFavoriteService.createUserFavorite(
+        req.user.userId,
+        userFavoriteDto,
+      )
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        throw new HttpException(
+          'An issue occurred during user creation',
+          HttpStatus.CONFLICT,
+        )
+      }
+      console.log(error)
+      throw new HttpException('Unknown Error', HttpStatus.INTERNAL_SERVER_ERROR)
+    }
+  }
+
+  @Delete('/:userFavoriteId')
+  async deleteUserFavorite(
+    @Req() req: RequestWithUser,
+    @Param('userFavoriteId', ParseIntPipe) userFavoriteId: number,
+  ) {
+    try {
+      return await this.userFavoriteService.deleteUserFavorite(
+        req.user.userId,
+        userFavoriteId,
+      )
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        throw new HttpException(
+          'User favorite does not exist',
+          HttpStatus.NOT_FOUND,
+        )
+      }
+      console.log(error)
+      throw new HttpException('Unknown Error', HttpStatus.INTERNAL_SERVER_ERROR)
+    }
+  }
+}
+
+/**
+ * 유저 요청사항 관련 API
+ */
+@UseGuards(JwtAuthGuard)
+@Controller('user/needs')
+export class UserNeedsController {
+  constructor(private readonly userNeedsService: UserNeedsService) {}
+
+  @Get()
+  async getUserNeeds(@Req() req: RequestWithUser) {
+    try {
+      return await this.userNeedsService.getUserNeeds(req.user.userId)
+    } catch (error) {
+      console.log(error)
+      throw new HttpException('Unknown Error', HttpStatus.INTERNAL_SERVER_ERROR)
+    }
+  }
+
+  @Post()
+  async createUserNeeds(
+    @Req() req: RequestWithUser,
+    @Body('require') require: Require,
+  ) {
+    try {
+      return await this.userNeedsService.createUserNeeds(
+        req.user.userId,
+        require,
+      )
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        throw new HttpException(
+          'An issue occurred during user-needs creation',
+          HttpStatus.CONFLICT,
+        )
+      } else if (error instanceof Prisma.PrismaClientValidationError) {
+        throw new HttpException(
+          'Invalid value for argument "require"',
+          HttpStatus.CONFLICT,
+        )
+      } else if (error.status === HttpStatus.CONFLICT) {
+        throw new HttpException(error.message, HttpStatus.CONFLICT)
+      }
+      console.log(error)
+      throw new HttpException('Unknown Error', HttpStatus.INTERNAL_SERVER_ERROR)
+    }
+  }
+
+  @Delete('/:userRequireId')
+  async deleteUserNeeds(
+    @Req() req: RequestWithUser,
+    @Param('userRequireId', ParseIntPipe) userRequireId: number,
+  ) {
+    try {
+      return await this.userNeedsService.deleteUserNeeds(
+        req.user.userId,
+        userRequireId,
+      )
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        throw new HttpException(
+          'User-needs does not exist',
+          HttpStatus.NOT_FOUND,
+        )
+      }
+      console.log(error)
       throw new HttpException('Unknown Error', HttpStatus.INTERNAL_SERVER_ERROR)
     }
   }

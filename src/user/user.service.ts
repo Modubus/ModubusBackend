@@ -1,8 +1,9 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient, Require } from '@prisma/client'
 import { CreateUserDto, LoginUserDto, UpdateUserDto } from './dto/user.dto'
-import { Injectable } from '@nestjs/common'
 import * as bcrypt from 'bcryptjs'
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common'
 import { JwtService } from '@nestjs/jwt'
+import { UserFavoriteDto } from './dto/user-favorite.dto'
 
 @Injectable()
 export class UserService {
@@ -125,6 +126,84 @@ export class UserService {
     return await this.prisma.user.delete({
       where: {
         id: userId,
+      },
+    })
+  }
+}
+
+@Injectable()
+export class UserFavoriteService {
+  constructor(private readonly prisma: PrismaClient) {}
+
+  async getUserFavorites(userId: number) {
+    return await this.prisma.userFavorite.findMany({
+      where: {
+        userId,
+      },
+    })
+  }
+
+  async createUserFavorite(userId: number, userFavoriteDto: UserFavoriteDto) {
+    return await this.prisma.userFavorite.create({
+      data: {
+        userId,
+        routnm: userFavoriteDto.routnm,
+        nodeId: userFavoriteDto.nodeId,
+      },
+    })
+  }
+
+  async deleteUserFavorite(userId: number, userFavoriteId: number) {
+    return await this.prisma.userFavorite.delete({
+      where: {
+        id: userFavoriteId,
+        userId,
+      },
+    })
+  }
+}
+
+@Injectable()
+export class UserNeedsService {
+  constructor(private readonly prisma: PrismaClient) {}
+
+  async getUserNeeds(userId: number) {
+    return await this.prisma.userRequire.findMany({
+      where: {
+        userId,
+      },
+    })
+  }
+
+  async createUserNeeds(userId: number, require: Require) {
+    const userRequire = await this.prisma.userRequire.findFirst({
+      where: {
+        userId,
+        require,
+      },
+    })
+
+    // 이미 유저가 해당 타입의 요청사항을 등록한 경우
+    if (userRequire) {
+      throw new HttpException(
+        'User already registered this kind of user-needs',
+        HttpStatus.CONFLICT,
+      )
+    }
+
+    return await this.prisma.userRequire.create({
+      data: {
+        userId,
+        require,
+      },
+    })
+  }
+
+  async deleteUserNeeds(userId: number, userRequireId: number) {
+    return await this.prisma.userRequire.delete({
+      where: {
+        id: userRequireId,
+        userId,
       },
     })
   }
