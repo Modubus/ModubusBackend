@@ -1,7 +1,7 @@
 import { PrismaClient, Require } from '@prisma/client'
 import { CreateUserDto, LoginUserDto, UpdateUserDto } from './dto/user.dto'
+import * as bcrypt from 'bcryptjs'
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common'
-import * as bcrypt from 'bcrypt'
 import { JwtService } from '@nestjs/jwt'
 import { UserFavoriteDto } from './dto/user-favorite.dto'
 
