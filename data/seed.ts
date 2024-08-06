@@ -12,20 +12,20 @@ async function main() {
 
   // 버스 회사 데이터
   const companies = [
-    { name: 'Yuseong', code: 'Yuseong' },
-    { name: 'Sinchon', code: 'Sinchon' },
-    { name: 'Shinil', code: 'Shinil' },
-    { name: 'Paju', code: 'Paju' },
+    { name: 'Yuseong', code: 'Yuseong', cityCode: '11' },
+    { name: 'Sinchon', code: 'Sinchon', cityCode: '11' },
+    { name: 'Shinil', code: 'Shinil', cityCode: '31200' },
+    { name: 'Paju', code: 'Paju', cityCode: '31200' },
   ]
 
   // 회사 코드 생성 및 데이터 삽입
   const companyData = await Promise.all(
-    // 나중에 cityode 추가 예정
     companies.map(async (company) => {
       return await prisma.busCompany.create({
         data: {
           name: company.name,
           code: company.code,
+          cityCode: company.cityCode,
         },
       })
     }),
@@ -127,7 +127,7 @@ async function main() {
   await prisma.userFavorite.createMany({
     data: [
       {
-        routnm: '92-1',
+        routnm: '92',
         nodeId: 'node123',
         userId: user1.id,
       },
