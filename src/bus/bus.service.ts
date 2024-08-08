@@ -1,4 +1,127 @@
-import { Injectable } from '@nestjs/common'
-
+import {
+  HttpException,
+  HttpStatus,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common'
+import { LocationSearchApiService } from '../api/location-search-api/location-search-api.service'
+import { BusArrivalInfo } from './Dto/BusArrivalInfo'
+import { Location } from './Dto/location'
+import { BusStopApiService } from '../api/bus-stop-api/bus-stop-api.service'
+import { OdsayApiService } from '../api/odsay-api/odsay-api.service'
 @Injectable()
-export class BusService {}
+export class BusService {
+  constructor(
+    private locationSearchApiService: LocationSearchApiService,
+    private busStopApiService: BusStopApiService,
+    private odsayApiService: OdsayApiService,
+  ) {}
+
+  // 출발지에서 가장 가까운 버스 정류장의 버스 도착 정보를 반환
+  async getBusStationStart(startStation: string): Promise<BusArrivalInfo[]> {
+    const station = await this.locationSearchApiService.performSearch(
+      startStation,
+    )
+
+    if (!station) {
+      throw new Error('No station found for the given start location')
+    }
+
+    return this.busToStation(station[0])
+  }
+
+  // 주어진 버스 정류장 위치에 대한 버스 도착 정보를 반환
+  async busToStation(station: Location): Promise<BusArrivalInfo[]> {
+    const stationInfos = await this.busStopApiService.busToStation(
+      station.lat,
+      station.lon,
+    )
+
+    if (!stationInfos.length) {
+      throw new Error('No nearby bus stations found')
+    }
+
+    const stationInfo = stationInfos[0]
+
+    const arrivalBusInfos = await this.busStopApiService.busArrivalInfo(
+      stationInfo.citycode,
+      stationInfo.nodeid,
+    )
+
+    const busInfos: BusArrivalInfo[] = arrivalBusInfos.map((arrival) => ({
+      // 여기 DTO로 깔끔하게 할 수 있는지 알아보기
+      arrprevstationcnt: arrival.arrprevstationcnt.toString(),
+      vehicletp: arrival.vehicletp,
+      arrtime: Number(arrival.arrtime),
+      routeno: arrival.routeno,
+    }))
+
+    return busInfos
+  }
+
+  async getBusStationEnd(
+    startStation: string,
+    endStation: string,
+  ): Promise<any> {
+    // 정의 해야됨
+    // 시작 지점에 가장 가까운 정류장을 반환
+    const startLocation = await this.locationSearchApiService.performSearch(
+      startStation,
+    )
+    if (!startLocation) {
+      throw new NotFoundException(
+        'No station found for the given start location',
+      )
+    }
+
+    // 목적지에 가장 가까운 정류장을 반환
+    const endLocation = await this.locationSearchApiService.performSearch(
+      endStation,
+    )
+    if (!endLocation) {
+      throw new NotFoundException('No station found for the given end location')
+    }
+
+    const startX = startLocation.lon
+    const startY = startLocation.lat
+    const endX = endLocation.lon
+    const endY = endLocation.lat
+
+    // 시작 좌표에서 목적지 좌표까지의 버스 경로 정보 반환
+    const BusRouteData = this.odsayApiService.searchBusRoutes(
+      startX,
+      startY,
+      endX,
+      endY,
+    )
+    return BusRouteData
+  }
+
+  // 3. ODsay로 목적지로 갈 수 있는 버스 데이터 반환(버스 번호, 버스 형태, 환승시 환승 버스 이름과 환승 정류장 위치, 해당 정류소 도착 시간)
+
+  async getBusInf(rounteno: string) {
+    //  BusStationInfo()
+    //  const boardBusInfo = await this.busStopApiService.BoardBusInfo()
+    // Bus arrival info: [
+    //{
+    //  arrprevstationcnt: 5,
+    //  vehicletp: '급행버스',
+    //  arrtime: 519,
+    //  routeno: '2'
+    //}
+    //]
+  }
+  async reserveBus() {
+    //  @Post
+    // /:stationId/:busId
+    // 탑승할 버스의 기사에게 사용자 데이터 보내기
+    // (사용자 요구사항, 사용자 출발 정류장 정보, 하차 정류장 정보, 탑승인원 카운트)
+  }
+
+  async cancelBus() {
+    //  @Delete
+    // /:stationId/:busId
+    // 탑승할 버스기사에게 있는 사용자 데이터 삭제하기
+    // (사용자 정보 삭제)
+  }
+}
