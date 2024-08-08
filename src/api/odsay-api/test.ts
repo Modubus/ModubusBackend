@@ -1,17 +1,19 @@
 import { config } from 'dotenv'
 config()
+
 import { OdsayApiService } from './odsay-api.service'
 
-// OdsayApiService 테스트 함수
+// 테스트 함수를 정의
 async function testSearchBusRoutes() {
   const odsayApiService = new OdsayApiService()
 
-  const startX = 127.02761 // 예시 시작 X 좌표 (경도)
-  const startY = 37.497942 // 예시 시작 Y 좌표 (위도)
-  const endX = 127.037628 // 예시 도착 X 좌표 (경도)
-  const endY = 37.500792 // 예시 도착 Y 좌표 (위도)
+  // 테스트할 좌표 설정
+  const startX = 126.923511 // 시작 지점의 경도
+  const startY = 37.512462 // 시작 지점의 위도
+  const endX = 126.955397 // 도착 지점의 경도
+  const endY = 37.602579 // 도착 지점의 위도
 
-  console.log('Starting searchBusRoutes test...')
+  console.log('Testing searchBusRoutes...')
   console.log('Parameters:', { startX, startY, endX, endY })
 
   try {
@@ -27,5 +29,5 @@ async function testSearchBusRoutes() {
   }
 }
 
-// 테스트 함수 실행
+// 테스트 함수 호출
 testSearchBusRoutes()
