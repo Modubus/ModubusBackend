@@ -1,6 +1,6 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common'
 import axios from 'axios'
-// API는 완성 하지만 나중에 지하철에 대한 정보도 넣어주고 기능은 버스에서 가능하게 만드는게 좋을 것 같다
+// API는 완성?은 사실 아니고 버스만 나오게 하니까 지하철에 대한 경로가 빠져서 조금 이상하게 나옴 나중에 지하철에 대한 정보도 넣어주고 기능은 버스에서 가능하게 만드는게 좋을 것 같다
 interface BusRouteInfo {
   busNumber: string
   busType: string
@@ -47,6 +47,7 @@ export class OdsayApiService {
           // 환승 버스의 정보
           if (transferBus) {
             busRouteInfo.transferInfo = {
+              // 여기도 버스 타입 정의 가능한지 확인 필요
               transferBusNumber: transferBus.lane[0].busNo,
               transferBusStop: transferBus.startName,
             }

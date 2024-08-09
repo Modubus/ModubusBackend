@@ -17,7 +17,7 @@ export class LocationSearchApiService {
   // 주어진 Station 키워드로 장소를 검색하고, 검색된 장소의 상세 정보를 반환
   async searchPlace(Station: string) {
     if (!Station.replace(/^\s+|\s+$/g, '')) {
-      throw new NotFoundException(`Keyword is empty`)
+      throw new NotFoundException(`Station is empty`)
     }
 
     const url = `https://nominatim.openstreetmap.org/search?q=${Station}&format=json&addressdetails=1&limit=5`

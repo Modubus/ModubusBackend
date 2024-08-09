@@ -1,9 +1,7 @@
-import { Module } from '@nestjs/common';
-import { LocationSearchApiService } from './location-search-api.service';
-import { LocationSearchApiController } from './location-search-api.controller';
+import { Module } from '@nestjs/common'
+import { LocationSearchApiService } from './location-search-api.service'
 
 @Module({
   providers: [LocationSearchApiService],
-  controllers: [LocationSearchApiController]
 })
 export class LocationSearchApiModule {}

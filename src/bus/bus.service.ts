@@ -9,9 +9,11 @@ import { BusArrivalInfo } from './Dto/BusArrivalInfo'
 import { Location } from './Dto/location'
 import { BusStopApiService } from '../api/bus-stop-api/bus-stop-api.service'
 import { OdsayApiService } from '../api/odsay-api/odsay-api.service'
+import { NodeApiService } from 'ModubusBackend/src/api/node-api/node-api.service'
 @Injectable()
 export class BusService {
   constructor(
+    private nodeApiService: NodeApiService,
     private locationSearchApiService: LocationSearchApiService,
     private busStopApiService: BusStopApiService,
     private odsayApiService: OdsayApiService,
@@ -38,7 +40,7 @@ export class BusService {
     )
 
     if (!stationInfos.length) {
-      throw new Error('No nearby bus stations found')
+      throw new Error('Failed to fetch bus station information')
     }
 
     const stationInfo = stationInfos[0]
@@ -96,21 +98,27 @@ export class BusService {
     )
     return BusRouteData
   }
-
-  // 3. ODsay로 목적지로 갈 수 있는 버스 데이터 반환(버스 번호, 버스 형태, 환승시 환승 버스 이름과 환승 정류장 위치, 해당 정류소 도착 시간)
-
-  async getBusInf(rounteno: string) {
-    //  BusStationInfo()
-    //  const boardBusInfo = await this.busStopApiService.BoardBusInfo()
-    // Bus arrival info: [
-    //{
-    //  arrprevstationcnt: 5,
-    //  vehicletp: '급행버스',
-    //  arrtime: 519,
-    //  routeno: '2'
-    //}
-    //]
+  async getBusInfo(routeno: string, startStation: string) {
+    // 곧 탑승 할 버스의 정보를 반환
+    const nodeInfo = this.locationSearchApiService.performSearch(startStation)
+    const stationInfo = this.busStopApiService.busToStation(
+      nodeInfo[0].lat,
+      nodeInfo[0].lon,
+    )
+    const route = this.nodeApiService.getRouteIdByRouteNo(
+      routeno,
+      stationInfo[0].cityCode,
+    )
+    const busInfo = this.busStopApiService.BoardBusInfo(
+      stationInfo[0].cityCode,
+      stationInfo[0].nodeid,
+      route[0].routeid,
+    )
+    // getRouteByRouteId(routeId, cityCode) - 노선 경로
+    // getSeoulRouteById(routeId) - 서울 노선 경로
+    return busInfo
   }
+
   async reserveBus() {
     //  @Post
     // /:stationId/:busId

@@ -22,8 +22,14 @@ export class DriverService {
   async findCompanyAndBusesByCode(code: string) {
     const busCompany = await this.prisma.busCompany.findFirst({
       where: { code: code },
-      include: {
-        Bus: true,
+      select: {
+        name: true, // 회사 이름
+        Bus: {
+          select: {
+            vehicleno: true, // 버스의 차량 번호
+            routnm: true, // 버스의 노선 이름
+          },
+        },
       },
     })
     if (!busCompany) {
