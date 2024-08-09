@@ -7,8 +7,9 @@ import { PrismaModule } from './prisma/prisma.module'
 import { DriverModule } from './driver/driver.module'
 import { NodeApiModule } from './api/node-api/node-api.module'
 import { LocationSearchApiModule } from './api/location-search-api/location-search-api.module'
-import { OdsayApiController } from './api/odsay-api/odsay-api.controller'
 import { OdsayApiModule } from './api/odsay-api/odsay-api.module'
+import { RealTimeTestService } from './real-time-test/real-time-test.service';
+import { RealTimeTestModule } from './real-time-test/real-time-test.module';
 
 @Module({
   imports: [
@@ -19,8 +20,9 @@ import { OdsayApiModule } from './api/odsay-api/odsay-api.module'
     NodeApiModule,
     LocationSearchApiModule,
     OdsayApiModule,
+    RealTimeTestModule,
   ],
-  controllers: [AppController, OdsayApiController],
-  providers: [AppService],
+  controllers: [AppController],
+  providers: [AppService, RealTimeTestService],
 })
 export class AppModule {}

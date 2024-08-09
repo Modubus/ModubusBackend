@@ -62,7 +62,7 @@ export class DriverService {
     // Prisma 사용하여 버스를 검색합니다.
     const bus = await this.prisma.bus.findFirst({
       // 버스실제 번호랑 버스 차량 번호
-      where: { vehicleno: vehicleno }, // 이렇게 하면 느려질까요?
+      where: { vehicleno: vehicleno },
     })
     if (!bus) {
       throw new NotFoundException(
