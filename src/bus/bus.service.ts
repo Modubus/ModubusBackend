@@ -98,26 +98,7 @@ export class BusService {
     )
     return BusRouteData
   }
-  async getBusInfo(routeno: string, startStation: string) {
-    // 곧 탑승 할 버스의 정보를 반환
-    const nodeInfo = this.locationSearchApiService.performSearch(startStation)
-    const stationInfo = this.busStopApiService.busToStation(
-      nodeInfo[0].lat,
-      nodeInfo[0].lon,
-    )
-    const route = this.nodeApiService.getRouteIdByRouteNo(
-      routeno,
-      stationInfo[0].cityCode,
-    )
-    const busInfo = this.busStopApiService.BoardBusInfo(
-      stationInfo[0].cityCode,
-      stationInfo[0].nodeid,
-      route[0].routeid,
-    )
-    // getRouteByRouteId(routeId, cityCode) - 노선 경로
-    // getSeoulRouteById(routeId) - 서울 노선 경로
-    return busInfo
-  }
+  async getBusInfo(routeno: string, startStation: string) {}
 
   async reserveBus() {
     //  @Post
