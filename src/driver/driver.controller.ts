@@ -6,6 +6,7 @@ import {
   HttpStatus,
   Body,
   Query,
+  HttpCode,
 } from '@nestjs/common'
 import { DriverService } from './driver.service'
 
@@ -16,54 +17,91 @@ export class DriverController {
   @Post('code')
   async findCompanyAndBusesByCode(@Body('code') code: string) {
     try {
-      return await this.driverService.findCompanyAndBusesByCode(code)
+      const companyData = await this.driverService.findCompanyAndBusesByCode(
+        code,
+      )
+      if (!companyData) {
+        throw new HttpException(
+          'No company found with provided code',
+          HttpStatus.NOT_FOUND,
+        )
+      }
+      return companyData
     } catch (error) {
-      console.log(error)
-      throw new HttpException('Unknown Error', HttpStatus.INTERNAL_SERVER_ERROR)
+      throw new HttpException(
+        error.message || 'Internal Server Error',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      )
     }
   }
 
   @Get('bus-num')
   async checkBusNumber(@Query('vehicleno') vehicleno: string) {
     try {
-      const result = await this.driverService.checkBusNumber(vehicleno)
-      return result
+      const busData = await this.driverService.checkBusNumber(vehicleno)
+      if (!busData) {
+        throw new HttpException(
+          'No bus found with provided vehicle number',
+          HttpStatus.NOT_FOUND,
+        )
+      }
+      return busData
     } catch (error) {
-      console.log(error)
-      throw new HttpException('Unknown Error', HttpStatus.INTERNAL_SERVER_ERROR)
+      throw new HttpException(
+        error.message || 'Internal Server Error',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      )
     }
   }
 
   @Get('station-list')
   async findRoutnmByVehicleno(
     @Query('vehicleno') vehicleno: string,
-    @Query('cityCode') cityCode: string, // 입력 받을지 code를 받을때 자동으로 사용자가 가지고 있을지 생각해야함
+    @Query('cityCode') cityCode: string,
   ) {
     try {
-      const result = await this.driverService.findRoutnmByVehicleno(
+      const routeInfo = await this.driverService.findRoutnmByVehicleno(
         vehicleno,
         cityCode,
       )
-      return result
+      if (!routeInfo) {
+        throw new HttpException(
+          'No route information found',
+          HttpStatus.NOT_FOUND,
+        )
+      }
+      return routeInfo
     } catch (error) {
-      console.log(error)
-      throw new HttpException('Unknown Error', HttpStatus.INTERNAL_SERVER_ERROR)
+      throw new HttpException(
+        error.message || 'Internal Server Error',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      )
     }
   }
 
-  @Post('bus-end')
+  @Post('bus-operation')
+  @HttpCode(204)
   async changeOperation(@Body('vehicleno') vehicleno: string) {
-    return this.driverService.changeOperation(vehicleno)
+    await this.driverService.changeOperation(vehicleno)
   }
-
-  // 추후에 개발 예정
+  /*
   @Get('bus-info')
   async getBusInfo() {
     try {
-      //return await this.driverService.getBusInfo()
+      const busInfo = await this.driverService.getBusInfo()
+      if (!busInfo) {
+        throw new HttpException(
+          'Bus information is currently unavailable',
+          HttpStatus.SERVICE_UNAVAILABLE,
+        )
+      }
+      return busInfo
     } catch (error) {
-      console.log(error)
-      throw new HttpException('Unknown Error', HttpStatus.INTERNAL_SERVER_ERROR)
+      throw new HttpException(
+        error.message || 'Internal Server Error',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      )
     }
   }
+  */
 }

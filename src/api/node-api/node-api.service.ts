@@ -123,13 +123,15 @@ export class NodeApiService {
   // 도시 코드로 서울과 타지역 구분지어서 경로 반환하기
   async getRouteDetails(routeNo: string, cityCode: string) {
     try {
-      if (cityCode === '11') {
+      // 서울의 도시 코드가 '21'인 경우의 처리
+      if (cityCode === '21') {
         const routeIds = await this.getRouteIdSeoul(routeNo)
         const stopByRoute = await this.getSeoulRouteById(routeIds)
+        const stopNames = stopByRoute.map((stop) => stop.stopName)
 
-        return { routeNo: routeNo, stops: stopByRoute }
+        return { routeNo: routeNo, stops: stopNames }
       }
-
+      // 서울이 아닌 다른 지역의 처리
       const busInfo = await this.getRouteIdByRouteNo(routeNo, cityCode)
       const stopByRoute = await this.getRouteByRouteId(
         busInfo[0].routeid,

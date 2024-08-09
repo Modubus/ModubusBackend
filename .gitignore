@@ -2,6 +2,8 @@
 /dist
 /node_modules
 /ModubusBackend
+/test
+/src/test
 # Logs
 logs
 *.log
@@ -37,4 +39,3 @@ lerna-debug.log*
 # Environments
 .env
 
-ModubusBackend/ModubusBackend
