@@ -4,5 +4,6 @@ import { HttpModule } from '@nestjs/axios'
 @Module({
   imports: [HttpModule],
   providers: [NodeApiService],
+  exports: [NodeApiService],
 })
 export class NodeApiModule {}
