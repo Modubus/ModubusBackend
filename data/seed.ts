@@ -12,8 +12,8 @@ async function main() {
 
   // 버스 회사 데이터
   const companies = [
-    { name: 'Yuseong', code: 'Yuseong', cityCode: '11' },
-    { name: 'Sinchon', code: 'Sinchon', cityCode: '11' },
+    { name: 'Yuseong', code: 'Yuseong', cityCode: '21' },
+    { name: 'Sinchon', code: 'Sinchon', cityCode: '21' },
     { name: 'Shinil', code: 'Shinil', cityCode: '31200' },
     { name: 'Paju', code: 'Paju', cityCode: '31200' },
   ]
