@@ -24,7 +24,7 @@ export class BusService {
       throw new Error('No station found for the given start location')
     }
 
-    return this.busToStation(station[0])
+    return this.busToStation(station)
   }
 
   // 주어진 버스 정류장 위치에 대한 버스 도착 정보를 반환
@@ -60,11 +60,13 @@ export class BusService {
     startStation: string,
     endStation: string,
   ): Promise<any> {
-    // 정의 해야됨
     // 시작 지점에 가장 가까운 정류장을 반환
+    console.log('Searching start location for:', startStation)
     const startLocation = await this.locationSearchApiService.performSearch(
       startStation,
     )
+    console.log('Found start location:', startLocation)
+
     if (!startLocation) {
       throw new NotFoundException(
         'No station found for the given start location',
@@ -72,27 +74,37 @@ export class BusService {
     }
 
     // 목적지에 가장 가까운 정류장을 반환
+    console.log('Searching end location for:', endStation)
     const endLocation = await this.locationSearchApiService.performSearch(
       endStation,
     )
+    console.log('Found end location:', endLocation)
+
     if (!endLocation) {
       throw new NotFoundException('No station found for the given end location')
     }
 
     const startX = startLocation.lon
     const startY = startLocation.lat
+    console.log(`Start coordinates: X = ${startX}, Y = ${startY}`)
+
     const endX = endLocation.lon
     const endY = endLocation.lat
+    console.log(`End coordinates: X = ${endX}, Y = ${endY}`)
 
     // 시작 좌표에서 목적지 좌표까지의 버스 경로 정보 반환
-    const BusRouteData = this.odsayApiService.searchBusRoutes(
+    console.log('Searching bus routes...')
+    const busRouteData = await this.odsayApiService.searchBusRoutes(
       startX,
       startY,
       endX,
       endY,
     )
-    return BusRouteData
+    console.log('Bus route data:', busRouteData)
+
+    return busRouteData
   }
+
   async getBusInfo(routeno: string, startStation: string) {
     // 곧 탑승 할 버스의 정보를 반환
     const nodeInfo = this.locationSearchApiService.performSearch(startStation)
@@ -114,17 +126,17 @@ export class BusService {
     return busInfo
   }
 
-  async reserveBus() {
-    //  @Post
-    // /:stationId/:busId
-    // 탑승할 버스의 기사에게 사용자 데이터 보내기
-    // (사용자 요구사항, 사용자 출발 정류장 정보, 하차 정류장 정보, 탑승인원 카운트)
-  }
+  // async reserveBus() {
+  //   //  @Post
+  //   // /:stationId/:busId
+  //   // 탑승할 버스의 기사에게 사용자 데이터 보내기
+  //   // (사용자 요구사항, 사용자 출발 정류장 정보, 하차 정류장 정보, 탑승인원 카운트)
+  // }
 
-  async cancelBus() {
-    //  @Delete
-    // /:stationId/:busId
-    // 탑승할 버스기사에게 있는 사용자 데이터 삭제하기
-    // (사용자 정보 삭제)
-  }
+  // async cancelBus() {
+  //   //  @Delete
+  //   // /:stationId/:busId
+  //   // 탑승할 버스기사에게 있는 사용자 데이터 삭제하기
+  //   // (사용자 정보 삭제)
+  // }
 }

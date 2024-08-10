@@ -84,10 +84,14 @@ export class DriverService {
 
   // 버스 운행x, 운행o 변경
   async changeOperation(vehicleno: string) {
+    console.log('v:', vehicleno)
+
     // Prisma를 사용하여 버스를 검색합니다.
     const bus = await this.prisma.bus.findFirst({
       where: { vehicleno: vehicleno },
     })
+
+    console.log('bus:', bus)
 
     if (!bus) {
       console.log(`Bus with vehicle number ${vehicleno} not found`)
