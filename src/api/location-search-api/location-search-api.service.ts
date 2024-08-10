@@ -16,14 +16,18 @@ export class LocationSearchApiService {
 
   // 주어진 Station 키워드로 장소를 검색하고, 검색된 장소의 상세 정보를 반환
   async searchPlace(Station: string) {
+    console.log('Station:', Station)
+
     if (!Station.replace(/^\s+|\s+$/g, '')) {
       throw new NotFoundException(`Station is empty`)
     }
 
     const url = `https://nominatim.openstreetmap.org/search?q=${Station}&format=json&addressdetails=1&limit=5`
+    console.log('searchPlaceUrl:', url)
 
     try {
       const response = await axios.get(url)
+      console.log('resSearch:', response)
       const data = response.data
 
       return data.map((place: any) => ({
@@ -60,12 +64,20 @@ export class LocationSearchApiService {
     const serviceKey = process.env.API_KEY
 
     const url = `https://apis.data.go.kr/1613000/BusSttnInfoInqireService/getCrdntPrxmtSttnList?serviceKey=${serviceKey}&pageNo=1&numOfRows=10&_type=json&gpsLati=${gpsLati}&gpsLong=${gpsLong}`
-
+    console.log('qwer:', url)
     try {
       const response = await axios.get(url)
+      console.log('qqqq:', response)
       const data = response.data
 
-      const item = data.response.body.items.item
+      const item =
+        data.response.body.items.item instanceof Array
+          ? data.response.body.items.item[0]
+          : data.response.body.items.item
+
+      console.log('data123:', data)
+      console.log('item123', item)
+      console.log('detail123', data.response.body.items)
 
       const busStationInfos: BusStationInfo[] = [
         {
@@ -78,6 +90,8 @@ export class LocationSearchApiService {
         },
       ]
 
+      console.log('busStationInfos123:', busStationInfos)
+
       return busStationInfos
     } catch (error) {
       console.error('Failed to fetch nearby bus stations:', error)
@@ -88,7 +102,9 @@ export class LocationSearchApiService {
   // 주어진 Station 키워드로 장소를 검색하고, 그 장소 근처의 버스 정류장을 찾아서 반환
   async performSearch(Station: string): Promise<Location> {
     try {
+      console.log('startStation', Station)
       const places = await this.searchPlace(Station)
+      console.log('palce123:', places)
 
       if (!places.length) {
         throw new NotFoundException('No places found for the given location')
@@ -96,10 +112,13 @@ export class LocationSearchApiService {
 
       const firstPlace = places[0]
 
+      console.log('firstPlace:', firstPlace)
       const nearbyStations = await this.getNearbyBusStations(
         firstPlace.lat,
         firstPlace.lon,
       )
+
+      console.log('nearbyStation', nearbyStations)
 
       if (!nearbyStations.length) {
         throw new NotFoundException('No nearby bus stations found')
@@ -112,6 +131,8 @@ export class LocationSearchApiService {
         lat: firstStation.gpslati,
         lon: firstStation.gpslong,
       }
+
+      console.log('location', location)
 
       return location
     } catch (error) {

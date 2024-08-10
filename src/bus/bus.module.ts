@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common'
+import { Logger, Module } from '@nestjs/common'
 import { BusController } from './bus.controller'
 import { BusService } from './bus.service'
 import { LocationSearchApiModule } from 'src/api/location-search-api/location-search-api.module'
@@ -8,7 +8,7 @@ import { NodeApiModule } from 'src/api/node-api/node-api.module'
 
 @Module({
   controllers: [BusController],
-  providers: [BusService],
+  providers: [BusService, Logger],
   imports: [LocationSearchApiModule, ApiModule, OdsayApiModule, NodeApiModule],
 })
 export class BusModule {}

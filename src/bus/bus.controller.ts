@@ -12,23 +12,30 @@ import {
 @Controller('bus')
 export class BusController {
   constructor(private readonly busService: BusService) {}
-  @Get('stationId/start') // 실시간 버스운행 정보 받아오기 api 사용
-  async getBusStationStart(@Query('startStation') startStation: string) {
+
+  @Get('/station/end')
+  async getBusStationEnd(
+    @Query('startStation') startStation: string,
+    @Query('endStation') endStation: string,
+  ) {
     try {
-      return await this.busService.getBusStationStart(startStation)
+      const result = await this.busService.getBusStationEnd(
+        startStation,
+        endStation,
+      )
+      console.log('Final result:', result)
+
+      return result
     } catch (error) {
-      console.log(error)
+      console.error('Error in getBusStationEnd:', error)
       throw new HttpException('Unknown Error', HttpStatus.INTERNAL_SERVER_ERROR)
     }
   }
 
-  @Get('/stationId/end') // 실시간 버스운행 정보 받아오기 api 사용
-  async getBusStationEnd(
-    @Query('startStation') startStation: string,
-    @Query('EndStation') endStation: string,
-  ) {
+  @Get('/station/start') // 실시간 버스운행 정보 받아오기 api 사용
+  async getBusStationStart(@Query('startStation') startStation: string) {
     try {
-      return await this.busService.getBusStationEnd(startStation, endStation)
+      return await this.busService.getBusStationStart(startStation)
     } catch (error) {
       console.log(error)
       throw new HttpException('Unknown Error', HttpStatus.INTERNAL_SERVER_ERROR)

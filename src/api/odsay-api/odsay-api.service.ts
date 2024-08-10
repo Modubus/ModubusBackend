@@ -22,41 +22,63 @@ export class OdsayApiService {
     endY: number,
   ): Promise<BusRouteInfo[]> {
     const url = `https://api.odsay.com/v1/api/searchPubTransPathT?SX=${startX}&SY=${startY}&EX=${endX}&EY=${endY}&OPT=0&SearchType=0&SearchPathType=0&apiKey=${this.apiKey}`
+    console.log('Constructed URL:', url) // URL 생성 로그
 
     try {
+      console.log('Fetching bus routes from API...')
       const response = await axios.get(url)
+      console.log('API response received:', response.data) // API 응답 로그
+
       const data = response.data
 
       if (data.result && data.result.path) {
-        const busRoutes: BusRouteInfo[] = data.result.path.map((path: any) => {
-          const subPath = path.subPath.filter(
-            (subPath: any) => subPath.trafficType === 2, // 버스인 경우
-          )
+        console.log('Parsing bus routes...')
+        const busRoutes: BusRouteInfo[] = data.result.path.map(
+          (path: any, pathIndex: number) => {
+            console.log(`Processing path #${pathIndex}:`, path) // 각 경로 처리 로그
 
-          if (subPath.length === 0) {
-            return // 가능한 경로가 없다는 결과 반환
-          }
+            const subPath = path.subPath.filter(
+              (subPath: any) => subPath.trafficType === 2, // 버스인 경우
+            )
+            console.log('Filtered bus subPath:', subPath) // 필터링된 버스 서브패스 로그
 
-          const mainBus = subPath[0]
-          const transferBus = subPath[1] || null // 환승 버스
-
-          const busRouteInfo: BusRouteInfo = {
-            busNumber: mainBus.lane[0].busNo, // 버스 노선 번호 - 꼭 lane을 배열로 적어야하나?
-            busType: mainBus.lane[0].type, // 버스 타입
-          }
-          // 환승 버스의 정보
-          if (transferBus) {
-            busRouteInfo.transferInfo = {
-              // 여기도 버스 타입 정의 가능한지 확인 필요
-              transferBusNumber: transferBus.lane[0].busNo,
-              transferBusStop: transferBus.startName,
+            if (subPath.length === 0) {
+              console.log('No bus routes found for this path.')
+              return null // 가능한 경로가 없다는 결과 반환
             }
-          }
 
-          return busRouteInfo
-        })
+            const mainBus = subPath[0]
+            console.log('Main bus info:', mainBus) // 주요 버스 정보 로그
 
-        return busRoutes.filter((route) => route !== null)
+            const transferBus = subPath[1] || null // 환승 버스
+            console.log('Transfer bus info:', transferBus) // 환승 버스 정보 로그
+
+            const busRouteInfo: BusRouteInfo = {
+              busNumber: mainBus.lane[0].busNo, // 버스 노선 번호
+              busType: mainBus.lane[0].type, // 버스 타입
+            }
+            console.log('Bus route info created:', busRouteInfo) // 생성된 버스 경로 정보 로그
+
+            // 환승 버스의 정보
+            if (transferBus) {
+              busRouteInfo.transferInfo = {
+                transferBusNumber: transferBus.lane[0].busNo,
+                transferBusStop: transferBus.startName,
+              }
+              console.log(
+                'Transfer info added to route:',
+                busRouteInfo.transferInfo,
+              ) // 환승 정보 로그
+            }
+
+            return busRouteInfo
+          },
+        )
+
+        const filteredBusRoutes = busRoutes.filter((route) => route !== null)
+        console.log('Filtered bus routes:', filteredBusRoutes) // 필터링된 버스 경로 로그
+
+        return filteredBusRoutes
       } else {
         throw new Error('Invalid response format')
       }
