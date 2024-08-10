@@ -9,6 +9,13 @@ async function bootstrap() {
   dotenv.config()
   app.use(cookieParser())
   app.useGlobalPipes(new ValidationPipe())
+  app.enableCors({
+    origin: ['http://localhost:5173', 'https://modubus.jaemin-dev.store/'],
+    credentials: true,
+    allowedHeaders: ['*'],
+    exposedHeaders: ['Authorization', 'Content-Type'],
+    maxAge: 86400, // 1 day
+  })
   await app.listen(3000)
 }
 bootstrap()
