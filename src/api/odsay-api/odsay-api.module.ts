@@ -3,5 +3,6 @@ import { OdsayApiService } from './odsay-api.service'
 
 @Module({
   providers: [OdsayApiService],
+  exports: [OdsayApiService],
 })
 export class OdsayApiModule {}

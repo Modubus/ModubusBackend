@@ -1,10 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common'
 import { LocationSearchApiService } from '../api/location-search-api/location-search-api.service'
-import { BusArrivalInfo } from './Dto/BusArrivalInfo'
+import { BusArrivalInfo } from './Dto/busArrivalInfo'
 import { Location } from './Dto/location'
 import { BusStopApiService } from '../api/bus-stop-api/bus-stop-api.service'
 import { OdsayApiService } from '../api/odsay-api/odsay-api.service'
-import { NodeApiService } from 'ModubusBackend/src/api/node-api/node-api.service'
+import { NodeApiService } from 'src/api/node-api/node-api.service'
 @Injectable()
 export class BusService {
   constructor(
