@@ -8,22 +8,24 @@ import * as xml2js from 'xml2js'
 export class NodeApiService {
   private readonly nodeIdByroutnm: string
   private readonly getRoute: string
-  private readonly seoulIdByRoute: string
+  private readonly getSeoulIdByRoute: string
   private readonly getSeoulRoute: string
+  private readonly getStartEndNode: string
+  private readonly getSeoulStartEndNode: string
 
-  // 사용한 API 경로
   constructor(private readonly httpService: HttpService) {
     const API_KEY = process.env.API_KEY
     const API_NODE_URL = process.env.API_NODE_URL // json
     const SEOUL_NODE_URL = process.env.SEOUL_NODE_URL // xml
-    const API_TEMP_KEY = process.env.API_TEMP_KEY
     this.nodeIdByroutnm = `${API_NODE_URL}/getRouteNoList?serviceKey=${API_KEY}`
     this.getRoute = `${API_NODE_URL}/getRouteAcctoThrghSttnList?serviceKey=${API_KEY}`
-    this.seoulIdByRoute = `${SEOUL_NODE_URL}/getBusRouteList?serviceKey=${API_TEMP_KEY}`
-    this.getSeoulRoute = `${SEOUL_NODE_URL}/getStaionByRoute?serviceKey=${API_TEMP_KEY}`
+    this.getStartEndNode = `${API_NODE_URL}/getRouteInfoIem?serviceKey=${API_KEY}`
+    // type city routeId
+    this.getSeoulIdByRoute = `${SEOUL_NODE_URL}/getBusRouteList?serviceKey=${API_KEY}`
+    this.getSeoulRoute = `${SEOUL_NODE_URL}/getStaionByRoute?serviceKey=${API_KEY}`
+    this.getSeoulStartEndNode = `${SEOUL_NODE_URL}/getRouteInfo?serviceKey=${API_KEY}`
   }
 
-  // 노선번호로 노선아이디 찾기
   async getRouteIdByRouteNo(routeNo: string, cityCode: string): Promise<any> {
     const url = `${this.nodeIdByroutnm}&pageNo=1&numOfRows=10&_type=json&cityCode=${cityCode}&routeNo=${routeNo}`
 
@@ -32,7 +34,13 @@ export class NodeApiService {
         this.httpService.get(url).pipe(map((response) => response.data)),
       )
 
-      const items = response.response.body.items.item
+      let items = response.response.body.items.item
+
+      // items가 객체일 경우 배열로 변환
+      if (!Array.isArray(items)) {
+        items = [items]
+      }
+
       const filteredItems = items.filter(
         (item) => item.routeno.toString() === routeNo,
       )
@@ -47,20 +55,23 @@ export class NodeApiService {
     }
   }
 
-  // 노선 아이디로 노선경로 불러오기
   async getRouteByRouteId(routeId: string, cityCode: string) {
     try {
       let count: string = '0'
       const url_count = `${this.getRoute}&pageNo=1&numOfRows=${count}&_type=json&cityCode=${cityCode}&routeId=${routeId}`
+
       const response_count = await lastValueFrom(
         this.httpService.get(url_count).pipe(map((response) => response.data)),
       )
-      count = response_count.response.body.totalCount // 전체 경로 수
+
+      count = response_count.response.body.totalCount
 
       const url = `${this.getRoute}&pageNo=1&numOfRows=${count}&_type=json&cityCode=${cityCode}&routeId=${routeId}`
+
       const response = await lastValueFrom(
         this.httpService.get(url).pipe(map((response) => response.data)),
       )
+
       const route = response.response.body.items.item.map((item) => ({
         nodenm: item.nodenm,
       }))
@@ -75,15 +86,16 @@ export class NodeApiService {
     }
   }
 
-  // 노선번호로 서울 경로 id 찾기
   async getRouteIdSeoul(routeNo: string) {
     try {
-      const url = `${this.seoulIdByRoute}&strSrch=${routeNo}`
+      const url = `${this.getSeoulIdByRoute}&strSrch=${routeNo}`
+
       const response = await lastValueFrom(
         this.httpService.get(url).pipe(map((response) => response.data)),
       )
 
       const parsedData = await xml2js.parseStringPromise(response)
+
       const routeIds =
         parsedData.ServiceResult.msgBody[0].itemList[0].busRouteId[0]
 
@@ -97,15 +109,16 @@ export class NodeApiService {
     }
   }
 
-  // 서울 노선아이디로 경로 불러오기
   async getSeoulRouteById(routeId: string) {
     try {
       const url = `${this.getSeoulRoute}&busRouteId=${routeId}`
+
       const response = await lastValueFrom(
         this.httpService.get(url).pipe(map((response) => response.data)),
       )
 
       const parsedData = await xml2js.parseStringPromise(response)
+
       const seoulRoute = parsedData.ServiceResult.msgBody[0].itemList.map(
         (item) => item.stationNm[0],
       )
@@ -120,23 +133,25 @@ export class NodeApiService {
     }
   }
 
-  // 도시 코드로 서울과 타지역 구분지어서 경로 반환하기
   async getRouteDetails(routeNo: string, cityCode: string) {
     try {
-      // 서울의 도시 코드가 '21'인 경우의 처리
       if (cityCode === '21') {
         const routeIds = await this.getRouteIdSeoul(routeNo)
+
         const stopByRoute = await this.getSeoulRouteById(routeIds)
-        const stopNames = stopByRoute.map((stop) => stop.stopName)
+
+        const stopNames = stopByRoute.map((stop) => stop)
 
         return { routeNo: routeNo, stops: stopNames }
       }
-      // 서울이 아닌 다른 지역의 처리
+
       const busInfo = await this.getRouteIdByRouteNo(routeNo, cityCode)
+
       const stopByRoute = await this.getRouteByRouteId(
         busInfo[0].routeid,
         cityCode,
       )
+
       const busStops = stopByRoute.map((item) => item.nodenm)
 
       return { routeNo: routeNo, stops: busStops }
@@ -144,6 +159,65 @@ export class NodeApiService {
       console.error('Error fetching route details:', error)
       throw new HttpException(
         'Failed to fetch route details.',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      )
+    }
+  }
+
+  async getStartEndNodeByRouteNo(routeNo: string, cityCode: string) {
+    try {
+      // 서울일때
+      if (cityCode === '21') {
+        const routeId = await this.getRouteIdSeoul(routeNo)
+        const url = `${this.getSeoulStartEndNode}&busRouteId=${routeId}`
+
+        const response = await lastValueFrom(
+          this.httpService.get(url).pipe(map((response) => response.data)),
+        )
+
+        const parsedData = await xml2js.parseStringPromise(response)
+
+        const startnodenm =
+          parsedData.ServiceResult.msgBody[0].itemList[0].stStationNm[0]
+        const endnodenm =
+          parsedData.ServiceResult.msgBody[0].itemList[0].edStationNm[0]
+
+        return {
+          startnodenm,
+          endnodenm,
+        }
+      }
+      // 나머자
+      const routeInfo = await this.getRouteIdByRouteNo(routeNo, cityCode)
+      const routeId = routeInfo[0].routeid
+      const url = `${this.getStartEndNode}&_type=json&cityCode=${cityCode}&routeId=${routeId}`
+      const response = await lastValueFrom(
+        this.httpService.get(url).pipe(map((response) => response.data)),
+      )
+      let startnodenm
+      let endnodenm
+
+      const items = response.response.body.items.item
+
+      // 아이템이 배열인지 객체인지 판단하여 처리
+      if (Array.isArray(items)) {
+        // 배열일 때 첫 번째 아이템 사용
+        startnodenm = items[0].startnodenm
+        endnodenm = items[0].endnodenm
+      } else {
+        // 객체일 때 직접 속성에 접근
+        startnodenm = items.startnodenm
+        endnodenm = items.endnodenm
+      }
+
+      return {
+        startnodenm,
+        endnodenm,
+      }
+    } catch (error) {
+      console.error('Error fetching start and end node details:', error)
+      throw new HttpException(
+        'Failed to fetch start and end node details.',
         HttpStatus.INTERNAL_SERVER_ERROR,
       )
     }
