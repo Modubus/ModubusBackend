@@ -5,7 +5,7 @@ import { BusArrivalInfo } from './Dto/busArrivalInfo'
 
 @Injectable()
 export class BusStopApiService {
-  private serviceKey = process.env.API_KEY
+  private serviceKey = process.env.BUS_API_KEY
 
   // Fetches bus stations near a given GPS location
   async busToStation(

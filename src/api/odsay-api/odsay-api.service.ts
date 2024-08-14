@@ -12,7 +12,10 @@ interface BusRouteInfo {
 
 @Injectable()
 export class OdsayApiService {
-  private apiKey = process.env.ODSAY_KEY
+  private apiKey =
+    process.env.APP_ENV === 'PROD'
+      ? process.env.ODSAY_KEY_PROD
+      : process.env.ODSAY_KEY_LOCAL
 
   // 주어진 좌표를 바탕으로 버스 경로를 검색하는 함수
   async searchBusRoutes(
