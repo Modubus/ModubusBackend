@@ -98,7 +98,7 @@ export class DriverService {
       busId: bus.id,
     }
     return busId
-
+  }
   // busId -> 노선 번호를 찾는다 // prisma 검색
   // 노선 번호로 -> 노선 아이디를 찾는다 // node-api 검색
   // 노선 아이디로 -> 노선 정보를 찾는다 // node-api 검색
