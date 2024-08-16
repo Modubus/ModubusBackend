@@ -13,12 +13,12 @@ export class NodeApiService {
 
   // 사용한 API 경로
   constructor(private readonly httpService: HttpService) {
-    const API_KEY = process.env.API_KEY
+    const BUS_API_KEY = process.env.BUS_API_KEY
     const API_NODE_URL = process.env.API_NODE_URL // json
     const SEOUL_NODE_URL = process.env.SEOUL_NODE_URL // xml
     const API_TEMP_KEY = process.env.API_TEMP_KEY
-    this.nodeIdByroutnm = `${API_NODE_URL}/getRouteNoList?serviceKey=${API_KEY}`
-    this.getRoute = `${API_NODE_URL}/getRouteAcctoThrghSttnList?serviceKey=${API_KEY}`
+    this.nodeIdByroutnm = `${API_NODE_URL}/getRouteNoList?serviceKey=${BUS_API_KEY}`
+    this.getRoute = `${API_NODE_URL}/getRouteAcctoThrghSttnList?serviceKey=${BUS_API_KEY}`
     this.seoulIdByRoute = `${SEOUL_NODE_URL}/getBusRouteList?serviceKey=${API_TEMP_KEY}`
     this.getSeoulRoute = `${SEOUL_NODE_URL}/getStaionByRoute?serviceKey=${API_TEMP_KEY}`
   }

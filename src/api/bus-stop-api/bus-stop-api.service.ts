@@ -5,7 +5,7 @@ import { BusArrivalInfo } from './Dto/busArrivalInfo'
 
 @Injectable()
 export class BusStopApiService {
-  private serviceKey = process.env.API_KEY
+  private serviceKey = process.env.BUS_API_KEY
 
   // Fetches bus stations near a given GPS location
   async busToStation(
@@ -74,7 +74,7 @@ export class BusStopApiService {
     nodeId: string,
     routeId: string,
   ): Promise<BusArrivalInfo[]> {
-    const serviceKey = process.env.API_KEY
+    const serviceKey = process.env.BUS_API_KEY
 
     const url = `https://apis.data.go.kr/1613000/ArvlInfoInqireService/getSttnAcctoSpcifyRouteBusArvlPrearngeInfoList?serviceKey=${serviceKey}&pageNo=1&numOfRows=10&_type=json&cityCode=${cityCode}&nodeId=${nodeId}&routeId=${routeId}`
 
