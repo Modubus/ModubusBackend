@@ -1,11 +1,9 @@
 import {
   Controller,
-  Get,
   Post,
   HttpException,
   HttpStatus,
   Body,
-  Query,
   HttpCode,
 } from '@nestjs/common'
 import { DriverService } from './driver.service'
