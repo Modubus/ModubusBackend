@@ -17,6 +17,7 @@ export class NodeApiService {
     const BUS_API_KEY = process.env.BUS_API_KEY
     const API_NODE_URL = process.env.API_NODE_URL // json
     const SEOUL_NODE_URL = process.env.SEOUL_NODE_URL // xml
+
     this.nodeIdByroutnm = `${API_NODE_URL}/getRouteNoList?serviceKey=${BUS_API_KEY}`
     this.getRoute = `${API_NODE_URL}/getRouteAcctoThrghSttnList?serviceKey=${BUS_API_KEY}`
     this.getStartEndNode = `${API_NODE_URL}/getRouteInfoIem?serviceKey=${BUS_API_KEY}`
@@ -24,7 +25,6 @@ export class NodeApiService {
     this.getSeoulIdByRoute = `${SEOUL_NODE_URL}/getBusRouteList?serviceKey=${BUS_API_KEY}`
     this.getSeoulRoute = `${SEOUL_NODE_URL}/getStaionByRoute?serviceKey=${BUS_API_KEY}`
     this.getSeoulStartEndNode = `${SEOUL_NODE_URL}/getRouteInfo?serviceKey=${BUS_API_KEY}`
-  }
 
   async getRouteIdByRouteNo(routeNo: string, cityCode: string): Promise<any> {
     const url = `${this.nodeIdByroutnm}&pageNo=1&numOfRows=10&_type=json&cityCode=${cityCode}&routeNo=${routeNo}`
