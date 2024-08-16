@@ -26,8 +26,10 @@ export class LocationSearchApiService {
     console.log('searchPlaceUrl:', url)
 
     try {
-      const response = await axios.get(url)
-      console.log('resSearch:', response)
+      const response = await axios.get(url, {
+        timeout: 60000,
+      })
+      console.log('resSearch:', response.data)
       const data = response.data
 
       return data.map((place: any) => ({
