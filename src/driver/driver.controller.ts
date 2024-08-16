@@ -1,11 +1,9 @@
 import {
   Controller,
-  Get,
   Post,
   HttpException,
   HttpStatus,
   Body,
-  Query,
   HttpCode,
 } from '@nestjs/common'
 import { DriverService } from './driver.service'
@@ -14,19 +12,19 @@ import { DriverService } from './driver.service'
 export class DriverController {
   constructor(private readonly driverService: DriverService) {}
 
+  // code 입력 시 회사이름, id, 도시코드 반환
   @Post('code')
-  async findCompanyAndBusesByCode(@Body('code') code: string) {
+  async findBusCompanyIdAndCityCode(@Body('code') code: string) {
     try {
-      const companyData = await this.driverService.findCompanyAndBusesByCode(
-        code,
-      )
-      if (!companyData) {
+      const busCompanyInfo =
+        await this.driverService.findBusCompanyIdAndCityCode(code)
+      if (!busCompanyInfo) {
         throw new HttpException(
           'No company found with provided code',
           HttpStatus.NOT_FOUND,
         )
       }
-      return companyData
+      return busCompanyInfo
     } catch (error) {
       throw new HttpException(
         error.message || 'Internal Server Error',
@@ -35,17 +33,26 @@ export class DriverController {
     }
   }
 
-  @Get('bus-num')
-  async checkBusNumber(@Query('vehicleno') vehicleno: string) {
+  @Post('bus-search')
+  async findBusInfoByCompanyIdAndVehiclenoOrRoutnm(
+    @Body('busCompanyId') busCompanyId: number,
+    @Body('vehicleno') vehicleno?: string,
+    @Body('routnm') routnm?: string,
+  ) {
     try {
-      const busData = await this.driverService.checkBusNumber(vehicleno)
-      if (!busData) {
+      const buses =
+        await this.driverService.findBusInfoByCompanyIdAndVehiclenoOrRoutnm(
+          busCompanyId,
+          vehicleno,
+          routnm,
+        )
+      if (!buses) {
         throw new HttpException(
-          'No bus found with provided vehicle number',
+          'No bus found with provided busInfo',
           HttpStatus.NOT_FOUND,
         )
       }
-      return busData
+      return buses
     } catch (error) {
       throw new HttpException(
         error.message || 'Internal Server Error',
@@ -54,14 +61,41 @@ export class DriverController {
     }
   }
 
-  @Get('station-list')
-  async findRoutnmByVehicleno(
-    @Query('vehicleno') vehicleno: string,
-    @Query('cityCode') cityCode: string,
+  // 버스 아이디 반환, 버스 운행으로 상태 변경
+  @Post('busId')
+  async confirmOperation(
+    @Body('busCompanyId') busCompanyId: number,
+    @Body('vehicleno') vehicleno: string,
   ) {
     try {
-      const routeInfo = await this.driverService.findRoutnmByVehicleno(
+      const busId = await this.driverService.confirmOperation(
+        busCompanyId,
         vehicleno,
+      )
+      if (!busId) {
+        throw new HttpException(
+          'No busId information found',
+          HttpStatus.NOT_FOUND,
+        )
+      }
+      return busId
+    } catch (error) {
+      throw new HttpException(
+        error.message || 'Internal Server Error',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      )
+    }
+  }
+
+  // 버스 아이디와 도시코드로 버스 경로를 반환 - 경로가 null로 반환
+  @Post('station-list')
+  async findRouteByBusIdAndCityCode(
+    @Body('busId') busId: number,
+    @Body('cityCode') cityCode: string,
+  ) {
+    try {
+      const routeInfo = await this.driverService.findRouteByBusIdAndCityCode(
+        busId,
         cityCode,
       )
       if (!routeInfo) {
@@ -79,10 +113,14 @@ export class DriverController {
     }
   }
 
+  // 버스 아이디가 있어야 변경 가능 - 로직 바뀔 수 있음
   @Post('bus-operation')
   @HttpCode(204)
-  async changeOperation(@Body('vehicleno') vehicleno: string) {
-    await this.driverService.changeOperation(vehicleno)
+  async changeOperation(
+    @Body('busId') busId: number,
+    @Body('vehicleno') vehicleno: string,
+  ) {
+    await this.driverService.changeOperation(busId, vehicleno)
   }
   /*
   @Get('bus-info')
