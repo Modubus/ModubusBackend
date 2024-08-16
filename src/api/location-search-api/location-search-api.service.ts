@@ -61,7 +61,7 @@ export class LocationSearchApiService {
     gpsLati: number,
     gpsLong: number,
   ): Promise<BusStationInfo[]> {
-    const serviceKey = process.env.API_KEY
+    const serviceKey = process.env.BUS_API_KEY
 
     const url = `https://apis.data.go.kr/1613000/BusSttnInfoInqireService/getCrdntPrxmtSttnList?serviceKey=${serviceKey}&pageNo=1&numOfRows=10&_type=json&gpsLati=${gpsLati}&gpsLong=${gpsLong}`
     console.log('qwer:', url)
