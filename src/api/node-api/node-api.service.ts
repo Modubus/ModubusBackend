@@ -26,7 +26,6 @@ export class NodeApiService {
     this.getSeoulRoute = `${SEOUL_NODE_URL}/getStaionByRoute?serviceKey=${BUS_API_KEY}`
     this.getSeoulStartEndNode = `${SEOUL_NODE_URL}/getRouteInfo?serviceKey=${BUS_API_KEY}`
   }
-
   async getRouteIdByRouteNo(routeNo: string, cityCode: string): Promise<any> {
     const url = `${this.nodeIdByroutnm}&pageNo=1&numOfRows=10&_type=json&cityCode=${cityCode}&routeNo=${routeNo}`
 
@@ -35,9 +34,14 @@ export class NodeApiService {
         this.httpService.get(url).pipe(map((response) => response.data)),
       )
 
-      let items = response.response.body.items.item
+      let items = response.response?.body?.items?.item
+      if (!items) {
+        throw new HttpException(
+          'No items found in the response.',
+          HttpStatus.NOT_FOUND,
+        )
+      }
 
-      // items가 객체일 경우 배열로 변환
       if (!Array.isArray(items)) {
         items = [items]
       }
