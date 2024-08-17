@@ -73,6 +73,7 @@ export class BusService {
       )
     }
 
+    await new Promise((resolve) => setTimeout(resolve, 500))
     // 목적지에 가장 가까운 정류장을 반환
     console.log('Searching end location for:', endStation)
     const endLocation = await this.locationSearchApiService.performSearch(
