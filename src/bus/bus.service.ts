@@ -72,7 +72,8 @@ export class BusService {
         'No station found for the given start location',
       )
     }
-
+    // 동일 api 호출 시 값이 timeout 오류 확인 -> 여러 방식으로 해결해보다가 동시 호출 문제를 해결
+    //await new Promise((resolve) => setTimeout(resolve, 500))
     // 목적지에 가장 가까운 정류장을 반환
     console.log('Searching end location for:', endStation)
     const endLocation = await this.locationSearchApiService.performSearch(

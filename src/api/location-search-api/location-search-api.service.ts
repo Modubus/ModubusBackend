@@ -9,6 +9,7 @@ import { AddressDTO } from './Dto/address.dto'
 import { BusStop } from './Dto/bus-stop.dto'
 import { Location } from './Dto/location.dto'
 import { BusStationInfo } from './Dto/busStationInfo'
+import * as https from 'https'
 
 @Injectable()
 export class LocationSearchApiService {
@@ -21,13 +22,16 @@ export class LocationSearchApiService {
     if (!Station.replace(/^\s+|\s+$/g, '')) {
       throw new NotFoundException(`Station is empty`)
     }
-
     const url = `https://nominatim.openstreetmap.org/search?q=${Station}&format=json&addressdetails=1&limit=5`
     console.log('searchPlaceUrl:', url)
 
     try {
+      const agent = new https.Agent({
+        family: 4,
+      }) // Ipv4로만 호출하게 만듬 - Ipv6 XX
+
       const response = await axios.get(url, {
-        timeout: 60000,
+        httpsAgent: agent,
       })
       console.log('resSearch:', response.data)
       const data = response.data
