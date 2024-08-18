@@ -4,5 +4,5 @@
 ### 서버 백그라운드에서 실행
 ### 서버 종료: ps aux | grep node 명령어로 PID 찾아서 kill
 
-./setup.sh
+./scripts/setup.sh
 nohup npm run start &> server.log &
