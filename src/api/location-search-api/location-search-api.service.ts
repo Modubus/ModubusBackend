@@ -5,11 +5,11 @@ import {
   NotFoundException,
 } from '@nestjs/common'
 import axios from 'axios'
-
 import { AddressDTO } from './Dto/address.dto'
 import { BusStop } from './Dto/bus-stop.dto'
 import { Location } from './Dto/location.dto'
 import { BusStationInfo } from './Dto/busStationInfo'
+import * as https from 'https'
 
 @Injectable()
 export class LocationSearchApiService {
@@ -22,7 +22,6 @@ export class LocationSearchApiService {
     if (!Station.replace(/^\s+|\s+$/g, '')) {
       throw new NotFoundException(`Station is empty`)
     }
-    const https = require('https')
     const url = `https://nominatim.openstreetmap.org/search?q=${Station}&format=json&addressdetails=1&limit=5`
     console.log('searchPlaceUrl:', url)
 
