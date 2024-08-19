@@ -70,8 +70,14 @@ model Bus {
   busCompany   BusCompany @relation(fields: [busCompanyId], references: [id])
   busCompanyId Int        @map("bus_company_id")
 <<<<<<< HEAD
+<<<<<<< HEAD
   code         String @unique
   operation    Boolean
+=======
+  operation    Boolean
+  vehicleno    String
+  routnm       String
+>>>>>>> bcd3b9d1c21470ff9e6d21a7334a1fcc3b1caeb2
 =======
   operation    Boolean
   vehicleno    String
