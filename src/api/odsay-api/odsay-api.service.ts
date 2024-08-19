@@ -15,10 +15,7 @@ export class OdsayApiService {
   private apiKey: string
 
   constructor() {
-    this.apiKey =
-      process.env.APP_ENV === 'PROD'
-        ? process.env.ODSAY_KEY_PROD
-        : process.env.ODSAY_KEY_LOCAL
+    this.apiKey = process.env.ODSAY_KEY
   }
 
   // Function to search bus routes based on coordinates
