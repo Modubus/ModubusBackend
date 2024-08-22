@@ -159,4 +159,28 @@ export class DriverService {
 
     return { message: `Bus with vehicle number ${vehicleno} found.` }
   }
+  async getBusInfo(busId: number) {
+    const busInfo = await this.prisma.bus.findUnique({
+      where: { id: busId },
+    })
+
+    if (!busInfo) {
+      throw new NotFoundException('Bus information is currently unavailable')
+    }
+
+    return busInfo
+  }
+  // 수정 필요 참고용 로직
+  private busInfoSubscribers: Array<() => void> = []
+  // 여러 구독자를 처리하는 로직
+  subscribeToBusInfoUpdates(callback: () => void) {
+    this.busInfoSubscribers.push(callback) // 구독자 목록에 추가
+  }
+
+  // 구독자들에게 변경 사항 알림
+  notifyBusInfoSubscribers() {
+    for (const subscriber of this.busInfoSubscribers) {
+      subscriber() // 각 구독자 콜백 함수 호출
+    }
+  }
 }

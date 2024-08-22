@@ -46,6 +46,7 @@ model User {
   disableType   DisableType    @default(OLD) @map("disable_type")
   requires      UserRequire[]
   userFavorites UserFavorite[]
+  boarding      Boarding?
 }
 
 /// 유저의 즐겨찾기 정보 (노선번호:정류장ID 1:1)
@@ -72,6 +73,7 @@ model Bus {
   operation    Boolean
   vehicleno    String
   routnm       String
+  boardings    Boarding[]
 }
 
 model BusCompany {
@@ -80,4 +82,14 @@ model BusCompany {
   Bus      Bus[]
   code     String @unique
   cityCode String
+}
+
+model Boarding {
+  id            Int     @id @default(autoincrement())
+  bus           Bus     @relation(fields: [busId], references: [id])
+  busId         Int     @map("bus_id")
+  user          User    @relation(fields: [userId], references: [id])
+  userId        Int     @unique @map("user_id")
+  startStation  String 
+  endStation    String
 }

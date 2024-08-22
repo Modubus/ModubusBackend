@@ -5,13 +5,17 @@ import { Location } from './Dto/location'
 import { BusStopApiService } from '../api/bus-stop-api/bus-stop-api.service'
 import { OdsayApiService } from '../api/odsay-api/odsay-api.service'
 import { NodeApiService } from 'src/api/node-api/node-api.service'
+import { PrismaClient } from '@prisma/client'
+import { DriverService } from 'src/driver/driver.service'
 @Injectable()
 export class BusService {
   constructor(
+    private prisma: PrismaClient,
     private nodeApiService: NodeApiService,
     private locationSearchApiService: LocationSearchApiService,
     private busStopApiService: BusStopApiService,
     private odsayApiService: OdsayApiService,
+    private driverService: DriverService,
   ) {}
 
   // 출발지에서 가장 가까운 버스 정류장의 버스 도착 정보를 반환
@@ -125,19 +129,56 @@ export class BusService {
     // getRouteByRouteId(routeId, cityCode) - 노선 경로
     // getSeoulRouteById(routeId) - 서울 노선 경로
     return busInfo
+  } // 버스의 위치, 남은 시간 혹은 정류장 수, 버스의 노선번호
+  async reserveBus(
+    startStation: string,
+    endStation: string,
+    routeno: string,
+    userId: number,
+  ) {
+    let busId: number // 노선 번호에 맞는 버스 id 검색로직 필요 추가하기 - 정류소 위치가 필요하지 않나 아마 로직 이미있을듯
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    })
+
+    if (!user) {
+      throw new NotFoundException(`User with ID ${userId} not found`)
+    }
+
+    const boarding = await this.prisma.boarding.create({
+      data: {
+        busId: busId,
+        userId: userId,
+        startStation: startStation,
+        endStation: endStation,
+      },
+    })
+
+    // 변경 사항을 DriverService에 알림
+    this.driverService.notifyBusInfoSubscribers()
+
+    return boarding
   }
 
-  // async reserveBus() {
-  //   //  @Post
-  //   // /:stationId/:busId
-  //   // 탑승할 버스의 기사에게 사용자 데이터 보내기
-  //   // (사용자 요구사항, 사용자 출발 정류장 정보, 하차 정류장 정보, 탑승인원 카운트)
-  // }
+  async cancelBus(userId: number) {
+    const cancelUser = await this.prisma.boarding.findFirst({
+      where: { userId: userId },
+    })
 
-  // async cancelBus() {
-  //   //  @Delete
-  //   // /:stationId/:busId
-  //   // 탑승할 버스기사에게 있는 사용자 데이터 삭제하기
-  //   // (사용자 정보 삭제)
-  // }
+    if (!cancelUser) {
+      throw new NotFoundException(
+        `No boarding record found for user with ID ${userId}`,
+      )
+    }
+
+    await this.prisma.boarding.delete({
+      where: { id: cancelUser.id },
+    })
+
+    // 변경 사항을 DriverService에 알림
+    this.driverService.notifyBusInfoSubscribers()
+
+    return { message: 'Boarding record successfully deleted.' }
+  }
 }

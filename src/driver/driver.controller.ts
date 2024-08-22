@@ -5,6 +5,8 @@ import {
   HttpStatus,
   Body,
   HttpCode,
+  Get,
+  Query,
 } from '@nestjs/common'
 import { DriverService } from './driver.service'
 
@@ -115,31 +117,59 @@ export class DriverController {
 
   // 버스 아이디가 있어야 변경 가능 - 로직 바뀔 수 있음
   @Post('bus-operation')
-  @HttpCode(204)
   async changeOperation(
     @Body('busId') busId: number,
     @Body('vehicleno') vehicleno: string,
   ) {
-    await this.driverService.changeOperation(busId, vehicleno)
-  }
-  /*
-  @Get('bus-info')
-  async getBusInfo() {
     try {
-      const busInfo = await this.driverService.getBusInfo()
-      if (!busInfo) {
-        throw new HttpException(
-          'Bus information is currently unavailable',
-          HttpStatus.SERVICE_UNAVAILABLE,
-        )
-      }
-      return busInfo
+      await this.driverService.changeOperation(busId, vehicleno)
+      return { message: 'Operation changed successfully' } // 성공 시 메시지 반환
     } catch (error) {
       throw new HttpException(
-        error.message || 'Internal Server Error',
+        'Operation could not be changed',
         HttpStatus.INTERNAL_SERVER_ERROR,
       )
     }
   }
+
+  @Get('bus-info')
+  async getBusInfo(@Query('busId') busId: number) {
+    try {
+      let timeoutReached = false
+
+      const timer = setTimeout(() => {
+        timeoutReached = true
+        throw new HttpException('No Content', HttpStatus.NO_CONTENT) // 30초 동안 변경 사항 없으면 오류 발생
+      }, 30000) // 30초 타이머
+
+      this.driverService.subscribeToBusInfoUpdates(async () => {
+        if (!timeoutReached) {
+          clearTimeout(timer)
+          try {
+            const busInfo = await this.driverService.getBusInfo(busId)
+            return busInfo // 변경 사항이 있으면 데이터를 반환
+          } catch (error) {
+            throw new HttpException(
+              'Failed to fetch bus information',
+              HttpStatus.INTERNAL_SERVER_ERROR,
+            )
+          }
+        }
+      })
+    } catch (error) {
+      throw new HttpException(
+        'Internal Server Error',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      )
+    }
+  }
+  /*정류장 별 탑승자 승차 정보(요구사항, 정류장별 승차, 하차 정보, 정류장별 탑승 인원 ), 현재 버스의 정류장 위치
+  이렇게 탑승 정보가 바뀌면 longpolling 방식으로 데이터 반환 예정
+ 버스의 위치를 파악할 수 있어야함 - 정류장 위치를 통해서 버스를 파악할 예정
   */
 }
+
+/*
+1. 정류장과 가까워 졌을때
+2. 업데이트 될때마다 
+*/
