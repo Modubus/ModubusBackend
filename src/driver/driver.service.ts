@@ -13,6 +13,7 @@ import { HttpService } from '@nestjs/axios'
 export class DriverService {
   private prisma: PrismaClient
   private nodeApiService: NodeApiService
+  private busInfoSubscribers: Array<(data: any) => void> = []
 
   constructor() {
     this.prisma = new PrismaClient()
@@ -160,6 +161,10 @@ export class DriverService {
     return { message: `Bus with vehicle number ${vehicleno} found.` }
   }
   async getBusInfo(busId: number) {
+    /*정류장 별 탑승자 승차 정보(요구사항, 정류장별 승차, 하차 정보, 정류장별 탑승 인원 ), 현재 버스의 정류장 위치
+  이렇게 탑승 정보가 바뀌면 longpolling 방식으로 데이터 반환 예정
+ 버스의 위치를 파악할 수 있어야함 - 정류장 위치를 통해서 버스를 파악할 예정
+  */
     const busInfo = await this.prisma.bus.findUnique({
       where: { id: busId },
     })
@@ -170,17 +175,18 @@ export class DriverService {
 
     return busInfo
   }
-  // 수정 필요 참고용 로직
-  private busInfoSubscribers: Array<() => void> = []
-  // 여러 구독자를 처리하는 로직
-  subscribeToBusInfoUpdates(callback: () => void) {
+  // 여러 구독자를 처리하는 로직// 여기 두개 로직 수정 필요
+  subscribeToBusInfoUpdates(callback: (data: any) => void) {
     this.busInfoSubscribers.push(callback) // 구독자 목록에 추가
   }
 
   // 구독자들에게 변경 사항 알림
-  notifyBusInfoSubscribers() {
-    for (const subscriber of this.busInfoSubscribers) {
-      subscriber() // 각 구독자 콜백 함수 호출
+  notifyBusInfoSubscribers(data: any) {
+    while (this.busInfoSubscribers.length) {
+      const subscriber = this.busInfoSubscribers.pop()
+      if (subscriber) {
+        subscriber(data) // 각 구독자 콜백 함수 호출
+      }
     }
   }
 }

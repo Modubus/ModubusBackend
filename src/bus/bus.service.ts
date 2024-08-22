@@ -136,7 +136,7 @@ export class BusService {
     routeno: string,
     userId: number,
   ) {
-    let busId: number // 노선 번호에 맞는 버스 id 검색로직 필요 추가하기 - 정류소 위치가 필요하지 않나 아마 로직 이미있을듯
+    let busId: number // 이거 받을 수 있는 로직을 만들어야 함
 
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -155,8 +155,9 @@ export class BusService {
       },
     })
 
-    // 변경 사항을 DriverService에 알림
-    this.driverService.notifyBusInfoSubscribers()
+    this.driverService.notifyBusInfoSubscribers({
+      message: 'New boarding data available',
+    })
 
     return boarding
   }
@@ -176,8 +177,9 @@ export class BusService {
       where: { id: cancelUser.id },
     })
 
-    // 변경 사항을 DriverService에 알림
-    this.driverService.notifyBusInfoSubscribers()
+    this.driverService.notifyBusInfoSubscribers({
+      message: 'Boarding record successfully deleted.',
+    })
 
     return { message: 'Boarding record successfully deleted.' }
   }

@@ -57,7 +57,7 @@ export class BusController {
     }
   }
 
-  @Post('/station') // 버스 탑승 입력하기
+  @Post('/station')
   async reserveBus(
     @Body('startStation') startStation: string,
     @Body('endStation') endStation: string,
@@ -76,7 +76,8 @@ export class BusController {
       throw new HttpException('Unknown Error', HttpStatus.INTERNAL_SERVER_ERROR)
     }
   }
-  @Delete('/station') // 버스 탑승 취소하기
+
+  @Delete('/station')
   async cancelBus(@Body('userId') userId: number) {
     try {
       return await this.busService.cancelBus(userId)

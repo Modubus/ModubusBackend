@@ -135,40 +135,38 @@ export class DriverController {
   @Get('bus-info')
   async getBusInfo(@Query('busId') busId: number) {
     try {
-      let timeoutReached = false
+      // 버스 정보가 존재하는지 먼저 확인
+      const busInfo = await this.driverService.getBusInfo(busId)
+      if (!busInfo) {
+        throw new HttpException(
+          'Bus information not found',
+          HttpStatus.NOT_FOUND,
+        )
+      }
 
-      const timer = setTimeout(() => {
-        timeoutReached = true
-        throw new HttpException('No Content', HttpStatus.NO_CONTENT) // 30초 동안 변경 사항 없으면 오류 발생
-      }, 30000) // 30초 타이머
-
-      this.driverService.subscribeToBusInfoUpdates(async () => {
-        if (!timeoutReached) {
-          clearTimeout(timer)
-          try {
-            const busInfo = await this.driverService.getBusInfo(busId)
-            return busInfo // 변경 사항이 있으면 데이터를 반환
-          } catch (error) {
-            throw new HttpException(
-              'Failed to fetch bus information',
-              HttpStatus.INTERNAL_SERVER_ERROR,
+      // 클라이언트 요청을 대기 상태로 유지하고, 데이터가 업데이트되면 응답을 보냄
+      return await new Promise((resolve, reject) => {
+        this.driverService.subscribeToBusInfoUpdates((data) => {
+          if (data) {
+            resolve(data)
+          } else {
+            reject(
+              new HttpException('No data available', HttpStatus.NO_CONTENT),
             )
           }
-        }
+        })
       })
     } catch (error) {
+      if (error instanceof HttpException) {
+        throw error
+      }
       throw new HttpException(
         'Internal Server Error',
         HttpStatus.INTERNAL_SERVER_ERROR,
       )
     }
   }
-  /*정류장 별 탑승자 승차 정보(요구사항, 정류장별 승차, 하차 정보, 정류장별 탑승 인원 ), 현재 버스의 정류장 위치
-  이렇게 탑승 정보가 바뀌면 longpolling 방식으로 데이터 반환 예정
- 버스의 위치를 파악할 수 있어야함 - 정류장 위치를 통해서 버스를 파악할 예정
-  */
 }
-
 /*
 1. 정류장과 가까워 졌을때
 2. 업데이트 될때마다 
