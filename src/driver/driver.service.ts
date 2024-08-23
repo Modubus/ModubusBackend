@@ -1,3 +1,4 @@
+import { Passenger } from './Dto/passengers'
 import {
   ConflictException,
   HttpException,
@@ -13,7 +14,7 @@ import { HttpService } from '@nestjs/axios'
 export class DriverService {
   private prisma: PrismaClient
   private nodeApiService: NodeApiService
-  private busInfoSubscribers: Array<(data: any) => void> = []
+  private passengers: Array<(passenger: Passenger) => void> = []
 
   constructor() {
     this.prisma = new PrismaClient()
@@ -175,18 +176,43 @@ export class DriverService {
 
     return busInfo
   }
-  // 여러 구독자를 처리하는 로직// 여기 두개 로직 수정 필요
-  subscribeToBusInfoUpdates(callback: (data: any) => void) {
-    this.busInfoSubscribers.push(callback) // 구독자 목록에 추가
+
+  startMonitoringBusLocation(
+    busId: number,
+    callback: (locationChanged: boolean) => void,
+  ) {
+    const intervalId = setInterval(async () => {
+      // API를 호출하여 버스의 위치와 정류장을 비교
+      const locationChanged = await this.checkBusLocation(busId)
+
+      // 정류장이 변경되었을 경우 콜백 호출
+      if (locationChanged) {
+        callback(true)
+
+        // 만약 정류장 변경이 감지되면, interval을 중지시키고 더 이상 체크하지 않도록 함
+        clearInterval(intervalId)
+      }
+    }, 60000) // 1분 간격 (60000ms)
   }
 
-  // 구독자들에게 변경 사항 알림
-  notifyBusInfoSubscribers(data: any) {
-    while (this.busInfoSubscribers.length) {
-      const subscriber = this.busInfoSubscribers.pop()
-      if (subscriber) {
-        subscriber(data) // 각 구독자 콜백 함수 호출
-      }
-    }
+  private async checkBusLocation(busId: number): Promise<boolean> {
+    // 여기서 실제로 API를 호출하거나 로직을 수행하여 버스의 위치가 변경되었는지 확인
+    // 예를 들어:
+    // const currentLocation = await this.api.getCurrentLocation(busId);
+    // return this.isBusAtNewStop(currentLocation);
+
+    // 임시로 true/false를 반환하도록 하겠습니다.
+    return Math.random() > 0.5 // 예시: 50% 확률로 위치 변경
+  }
+
+  dataToPassengerUpdates(callback: (passenger: Passenger) => void) {
+    this.passengers.push(callback)
+  }
+
+  // 탑승자 변경 사항 알림
+  notifyToDriverUpdates(passenger: Passenger) {
+    this.passengers.forEach((passenger) => {
+      passenger(passenger) // 각 탑승자 콜백 함수 호출
+    })
   }
 }

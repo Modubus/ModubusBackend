@@ -135,8 +135,10 @@ export class DriverController {
   @Get('bus-info')
   async getBusInfo(@Query('busId') busId: number) {
     try {
-      // 버스 정보가 존재하는지 먼저 확인
+      // Step 1: 버스 정보 조회
       const busInfo = await this.driverService.getBusInfo(busId)
+
+      // Step 2: 버스 정보 유무 확인
       if (!busInfo) {
         throw new HttpException(
           'Bus information not found',
@@ -144,11 +146,22 @@ export class DriverController {
         )
       }
 
-      // 클라이언트 요청을 대기 상태로 유지하고, 데이터가 업데이트되면 응답을 보냄
-      return await new Promise((resolve, reject) => {
-        this.driverService.subscribeToBusInfoUpdates((data) => {
+      // Step 3: 비동기적 데이터 대기 및 반환
+      return new Promise((resolve, reject) => {
+        // Step 4: 버스 위치 모니터링 시작 및 상태 변화 감지
+        this.driverService.startMonitoringBusLocation(
+          busId,
+          (locationChanged) => {
+            if (locationChanged) {
+              resolve({ message: 'Bus location has changed' })
+            }
+          },
+        )
+
+        // Step 5: 승객 정보 업데이트 감지
+        this.driverService.dataToPassengerUpdates((data) => {
           if (data) {
-            resolve(data)
+            resolve({ message: 'Passenger data has been updated' })
           } else {
             reject(
               new HttpException('No data available', HttpStatus.NO_CONTENT),
@@ -167,7 +180,3 @@ export class DriverController {
     }
   }
 }
-/*
-1. 정류장과 가까워 졌을때
-2. 업데이트 될때마다 
-*/

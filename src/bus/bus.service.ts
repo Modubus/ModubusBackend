@@ -122,20 +122,20 @@ export class BusService {
       stationInfo[0].cityCode,
     )
     const busInfo = this.busStopApiService.BoardBusInfo(
-      stationInfo[0].cityCode,
+      stationInfo[0].cityCode, // 이 부분 효율적인 방법으로 변경 할 수 있으면 좋겠음
       stationInfo[0].nodeid,
       route[0].routeid,
     )
-    // getRouteByRouteId(routeId, cityCode) - 노선 경로
-    // getSeoulRouteById(routeId) - 서울 노선 경로
     return busInfo
-  } // 버스의 위치, 남은 시간 혹은 정류장 수, 버스의 노선번호
+  } //남은 시간, 정류장 수 , 버스의 노선번호, 남은 정류장 수로 현재 버스의 정류장 위치 확인 가능
+
   async reserveBus(
     startStation: string,
     endStation: string,
     routeno: string,
     userId: number,
   ) {
+    //시작 정류장에 가장 가까운 버스, 버스 노선 번호
     let busId: number // 이거 받을 수 있는 로직을 만들어야 함
 
     const user = await this.prisma.user.findUnique({
@@ -146,7 +146,7 @@ export class BusService {
       throw new NotFoundException(`User with ID ${userId} not found`)
     }
 
-    const boarding = await this.prisma.boarding.create({
+    await this.prisma.boarding.create({
       data: {
         busId: busId,
         userId: userId,
@@ -155,11 +155,11 @@ export class BusService {
       },
     })
 
-    this.driverService.notifyBusInfoSubscribers({
-      message: 'New boarding data available',
+    this.driverService.notifyToDriverUpdates({
+      message: 'Boarding record changed.',
     })
 
-    return boarding
+    return { message: 'Boarding record changed.' }
   }
 
   async cancelBus(userId: number) {
@@ -177,10 +177,10 @@ export class BusService {
       where: { id: cancelUser.id },
     })
 
-    this.driverService.notifyBusInfoSubscribers({
-      message: 'Boarding record successfully deleted.',
+    this.driverService.notifyToDriverUpdates({
+      message: 'Boarding record changed.',
     })
 
-    return { message: 'Boarding record successfully deleted.' }
+    return { message: 'Boarding record changed.' }
   }
 }
