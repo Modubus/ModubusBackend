@@ -1,50 +1,51 @@
-import { Passenger } from './Dto/passengers'
 import {
+  Injectable,
   ConflictException,
   HttpException,
-  Injectable,
-  NotAcceptableException,
   NotFoundException,
 } from '@nestjs/common'
 import { PrismaClient } from '@prisma/client'
 import { NodeApiService } from '../api/node-api/node-api.service'
 import { HttpService } from '@nestjs/axios'
+import { Passenger } from './Dto/passengers'
+import { BoardingInfo } from './Dto/boardingInfo'
 
 @Injectable()
 export class DriverService {
   private prisma: PrismaClient
   private nodeApiService: NodeApiService
-  private passengers: Array<(passenger: Passenger) => void> = []
+  private passengersCallback: Array<(passengers: Passenger[]) => void> = []
+  private passengers: Passenger[] = []
 
   constructor() {
     this.prisma = new PrismaClient()
-    const httpService = new HttpService() // HttpService 인스턴스 생성
-    this.nodeApiService = new NodeApiService(httpService) // NodeApiService 인스턴스 생성
+    const httpService = new HttpService()
+    this.nodeApiService = new NodeApiService(httpService)
   }
 
   // 1. 버스회사 코드 입력 -> 회사id와 도시코드를 반환
   async findBusCompanyIdAndCityCode(code: string) {
     const busCompanyInfo = await this.prisma.busCompany.findFirst({
-      where: { code: code },
+      where: { code },
       select: { name: true, id: true, cityCode: true },
     })
     return busCompanyInfo
   }
+
   // 2. 버스회사 아이디 and (버스 차량번호 or 노선번호)를 통해 관련있는 모든 버스 반환
   async findBusInfoByCompanyIdAndVehiclenoOrRoutnm(
     busCompanyId: number,
     vehicleno?: string,
     routnm?: string,
   ) {
-    if (vehicleno === undefined && routnm === undefined) {
+    if (!vehicleno && !routnm) {
       throw new HttpException('vehicleno or routnm must be provided', 400)
     }
 
-    // 버스 정보 접근
     const buses = await this.prisma.bus.findMany({
       where: {
-        busCompanyId: busCompanyId,
-        OR: [{ vehicleno: vehicleno }, { routnm: routnm }],
+        busCompanyId,
+        OR: [{ vehicleno }, { routnm }],
       },
       select: {
         vehicleno: true,
@@ -61,7 +62,6 @@ export class DriverService {
       throw new HttpException('No bus found with the provided criteria', 404)
     }
 
-    // 각 버스에 대해 startEndNode 정보를 가져오고, bus 정보와 함께 반환
     const busInfoList = await Promise.all(
       buses.map(async (bus) => {
         const startEndNode = await this.nodeApiService.getStartEndNodeByRouteNo(
@@ -79,140 +79,199 @@ export class DriverService {
       }),
     )
 
-    return busInfoList // 모든 관련 버스 정보를 배열로 반환
+    return busInfoList
   }
 
-  // 각 노선별 다른 차량 번호 존재 -> 차량 실제 번호를 받음
-  //3. 회사 아이디, 차량번호 입력 -> 운행상태확인 -> 버스의 id 반환
+  // 3. 회사 아이디, 차량번호 입력 -> 운행상태확인 -> 버스의 id 반환
   async confirmOperation(busCompanyId: number, vehicleno: string) {
     const bus = await this.prisma.bus.findFirst({
-      where: { busCompanyId: busCompanyId, vehicleno: vehicleno },
+      where: { busCompanyId, vehicleno },
     })
 
-    // 버스 운행여부 확인 후 변경
-    if (bus.operation) {
+    if (bus?.operation) {
       throw new ConflictException(
         'The bus is currently operating, please select another bus',
       )
     }
-    this.changeOperation(bus.id, bus.vehicleno)
-    const busId = {
-      busId: bus.id,
-    }
-    return busId
+
+    await this.changeOperation(bus.id, bus.vehicleno)
+    return { busId: bus.id }
   }
-  // busId -> 노선 번호를 찾는다 // prisma 검색
-  // 노선 번호로 -> 노선 아이디를 찾는다 // node-api 검색
-  // 노선 아이디로 -> 노선 정보를 찾는다 // node-api 검색
-  // 상행 하행 여부 확인x 상행하행 데이터 전부 반환
 
   // 4. 버스 id -> 노선번호 -> 노선 아이디 -> 노선 경로
   async findRouteByBusIdAndCityCode(busId: number, cityCode: string) {
-    // Prisma 사용하여 버스를 검색합니다.
     const bus = await this.prisma.bus.findFirst({
-      // 버스실제 번호랑 버스 차량 번호
       where: { id: busId },
     })
+
     if (!bus) {
-      throw new NotFoundException(`Bus not found`)
+      throw new NotFoundException('Bus not found')
     }
-    // 노선 데이터를 API를 통해 가져옵니다.
-    const routnm = await this.nodeApiService.getRouteDetails(
+
+    const routes = await this.nodeApiService.getRouteDetails(
       bus.routnm,
       cityCode,
     )
-    return routnm
+    return routes
   }
 
-  // 버스 운행x, 운행o 변경
+  // 버스 운행 상태 변경
   async changeOperation(busId: number, vehicleno: string) {
-    // Prisma를 사용하여 버스를 검색합니다.
     const bus = await this.prisma.bus.findFirst({
-      where: { id: busId, vehicleno: vehicleno },
+      where: { id: busId, vehicleno },
     })
 
     if (!bus) {
-      console.log(`Bus with vehicle number ${vehicleno} not found`)
       throw new NotFoundException(
         `Bus with vehicle number ${vehicleno} not found`,
       )
     }
-    // 버스의 현재 운행 상태를 반전시킵니다.
+
     const updatedBus = await this.prisma.bus.update({
       where: { id: bus.id },
       data: { operation: !bus.operation },
     })
 
-    console.log(
-      `Bus with vehicle number ${vehicleno} operation status updated to ${!bus.operation}`,
-    )
     return updatedBus
   }
-  // 운행하려는 버스가 있음을 확인 - 이걸 어디에 사용하지?
-  async checkBusNumber(vehicleno: string) {
-    const bus = await this.prisma.bus.findFirst({
-      where: { vehicleno: vehicleno },
-    })
-    if (!bus) {
-      throw new NotFoundException(
-        `Bus with vehicle number ${vehicleno} not found`,
-      ) // 운행 여부 확인
-    }
 
-    return { message: `Bus with vehicle number ${vehicleno} found.` }
-  }
-  async getBusInfo(busId: number) {
-    /*정류장 별 탑승자 승차 정보(요구사항, 정류장별 승차, 하차 정보, 정류장별 탑승 인원 ), 현재 버스의 정류장 위치
-  이렇게 탑승 정보가 바뀌면 longpolling 방식으로 데이터 반환 예정
- 버스의 위치를 파악할 수 있어야함 - 정류장 위치를 통해서 버스를 파악할 예정
-  */
-    const busInfo = await this.prisma.bus.findUnique({
+  // longPolling 방식으로 기사에게 정보 업데이트
+  async getBusInfoToDriver(busId: number): Promise<BoardingInfo> {
+    const bus = await this.prisma.bus.findUnique({
       where: { id: busId },
     })
-
-    if (!busInfo) {
+    if (!bus) {
       throw new NotFoundException('Bus information is currently unavailable')
     }
-
+    const currentStation = await this.currentBusLocation(bus.id)
+    const futurePassengers = await this.countFuturePassengers(
+      this.passengers,
+      currentStation,
+      bus.id,
+    )
+    const busInfo: BoardingInfo = {
+      requires: ['이건 요구사항 어떻게 받는지 모름'], // 추후 수정 필요
+      currentStation: currentStation,
+      CurrentPassengers: this.passengers,
+      futurePassengers: futurePassengers,
+    }
     return busInfo
   }
 
-  startMonitoringBusLocation(
+  // 특정 버스의 현재 정류장 이후의 승객 수 계산
+  async countFuturePassengers(
+    passengers: Passenger[],
+    currentStation: string,
+    busId: number,
+  ): Promise<any> {
+    const bus = await this.prisma.bus.findUnique({
+      where: { id: busId },
+      include: { busCompany: true },
+    })
+
+    if (!bus) throw new Error('Bus not found')
+    if (!bus.busCompany) throw new Error('Bus company information is missing')
+
+    const stopsInfo = await this.nodeApiService.getRouteDetails(
+      bus.routnm,
+      bus.busCompany.cityCode,
+    )
+    const stops = stopsInfo.stops
+
+    const currentStationIndex = stops.indexOf(currentStation)
+    if (currentStationIndex === -1) {
+      throw new Error(
+        `Current station ${currentStation} not found in the route.`,
+      )
+    }
+
+    const futureStops = stops.slice(currentStationIndex + 1)
+    const passengerCounts = futureStops
+      .map((stop) => ({
+        stop,
+        count: passengers.filter((p) => p.startStation === stop).length,
+      }))
+      .filter((stopCount) => stopCount.count > 0)
+
+    return passengerCounts
+  }
+
+  //  return {
+  //  stopFlag: stopFlag,
+  //  stId: stId,
+  //} //지난 정류장과 같은 정류장인데 stopFlag0이면 아직 운행 중, 지난 정류장과 같은 이름인데 stopFlag1이면 도착, 지난 정류장과 다른 이름인데 stopFlag0이면 출발
+
+  public startMonitoringBusLocation(
     busId: number,
     callback: (locationChanged: boolean) => void,
-  ) {
+  ): void {
+    let previousLocation: any = null
+
     const intervalId = setInterval(async () => {
-      // API를 호출하여 버스의 위치와 정류장을 비교
-      const locationChanged = await this.checkBusLocation(busId)
-
-      // 정류장이 변경되었을 경우 콜백 호출
-      if (locationChanged) {
+      const currentLocation = await this.currentBusLocation(busId)
+      if (this.hasLocationChanged(previousLocation, currentLocation)) {
         callback(true)
-
-        // 만약 정류장 변경이 감지되면, interval을 중지시키고 더 이상 체크하지 않도록 함
         clearInterval(intervalId)
       }
-    }, 60000) // 1분 간격 (60000ms)
+      previousLocation = currentLocation
+    }, 60000)
   }
 
-  private async checkBusLocation(busId: number): Promise<boolean> {
-    // 여기서 실제로 API를 호출하거나 로직을 수행하여 버스의 위치가 변경되었는지 확인
-    // 예를 들어:
-    // const currentLocation = await this.api.getCurrentLocation(busId);
-    // return this.isBusAtNewStop(currentLocation);
-
-    // 임시로 true/false를 반환하도록 하겠습니다.
-    return Math.random() > 0.5 // 예시: 50% 확률로 위치 변경
+  // 위치 변경 감지
+  private hasLocationChanged(
+    previousLocation: any,
+    currentLocation: any,
+  ): boolean {
+    return (
+      !previousLocation ||
+      previousLocation.stopId !== currentLocation.stopId ||
+      previousLocation.stopFlag !== currentLocation.stopFlag
+    )
   }
 
-  dataToPassengerUpdates(callback: (passenger: Passenger) => void) {
-    this.passengers.push(callback)
+  // 실시간 버스 정류장 위치 및 이전 정류장 정보 확인
+  // 노선 번호 -> 같은 노선의 우
+  private async currentBusLocation(busId: number): Promise<any> {
+    const bus = await this.prisma.bus.findUnique({
+      where: { id: busId },
+    })
+    const buses = await this.nodeApiService.getBusesLocationByRouteno(
+      bus.routnm,
+    )
+    const vehicleInfo = buses.find((b) => b.vehicleno === bus.vehicleno)
+
+    const vehicleId = parseInt(vehicleInfo.vehId)
+    const busLocationInfo = this.nodeApiService.getBusInfoByVehId(vehicleId)
+    return busLocationInfo // 정류소 id, 정류소 도착 정보, 실시간 위치 정보
   }
 
   // 탑승자 변경 사항 알림
-  notifyToDriverUpdates(passenger: Passenger) {
-    this.passengers.forEach((passenger) => {
-      passenger(passenger) // 각 탑승자 콜백 함수 호출
+  async notifyToDriverUpdates(userId: number) {
+    await this.getPassengersFromDB(userId)
+
+    this.passengersCallback.forEach((callback) => {
+      callback(this.passengers)
     })
+  }
+
+  // DB에서 최신 승객 데이터를 가져오기
+  async getPassengersFromDB(userId: number) {
+    const passengers = await this.prisma.boarding.findMany({
+      where: { userId },
+      include: {
+        user: true, // 유저 정보를 포함시켜 Passenger 객체를 완성
+      },
+    })
+
+    this.passengers = passengers.map((boarding) => ({
+      userId: boarding.userId,
+      startStation: boarding.startStation,
+      endStation: boarding.endStation,
+    }))
+  }
+
+  // 탑승자 변경 사항 알림 등록
+  dataToPassengerUpdates(callback: (passengers: Passenger[]) => void) {
+    this.passengersCallback.push(callback)
   }
 }

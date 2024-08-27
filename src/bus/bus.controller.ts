@@ -45,12 +45,12 @@ export class BusController {
 
   // 내일 계발 예정(driver/busInfo polling or ws 방식 데이터와 함께)
   @Get('/station')
-  async getBusInf(
+  async getBusInfoToUser(
     @Query('routeno') routeno: string,
     @Query('startStation') startStation: string,
   ) {
     try {
-      return await this.busService.getBusInfo(routeno, startStation)
+      return await this.busService.getBusInfoToUser(routeno, startStation)
     } catch (error) {
       console.log(error)
       throw new HttpException('Unknown Error', HttpStatus.INTERNAL_SERVER_ERROR)

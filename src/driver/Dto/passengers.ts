@@ -1,1 +1,4 @@
-export interface Passenger {}
+export interface Passenger {
+  startStation: string
+  endStation: string
+}

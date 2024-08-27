@@ -136,7 +136,7 @@ export class DriverController {
   async getBusInfo(@Query('busId') busId: number) {
     try {
       // Step 1: 버스 정보 조회
-      const busInfo = await this.driverService.getBusInfo(busId)
+      const busInfo = await this.driverService.getBusInfoToDriver(busId)
 
       // Step 2: 버스 정보 유무 확인
       if (!busInfo) {

@@ -5,7 +5,7 @@ import { Location } from './Dto/location'
 import { BusStopApiService } from '../api/bus-stop-api/bus-stop-api.service'
 import { OdsayApiService } from '../api/odsay-api/odsay-api.service'
 import { NodeApiService } from 'src/api/node-api/node-api.service'
-import { PrismaClient } from '@prisma/client'
+import { Bus, PrismaClient } from '@prisma/client'
 import { DriverService } from 'src/driver/driver.service'
 @Injectable()
 export class BusService {
@@ -110,7 +110,7 @@ export class BusService {
     return busRouteData
   }
 
-  async getBusInfo(routeno: string, startStation: string) {
+  async getBusInfoToUser(routeno: string, startStation: string) {
     // 곧 탑승 할 버스의 정보를 반환
     const nodeInfo = this.locationSearchApiService.performSearch(startStation)
     const stationInfo = this.busStopApiService.busToStation(
@@ -135,8 +135,18 @@ export class BusService {
     routeno: string,
     userId: number,
   ) {
-    //시작 정류장에 가장 가까운 버스, 버스 노선 번호
-    let busId: number // 이거 받을 수 있는 로직을 만들어야 함
+    const nodeInfo = this.locationSearchApiService.performSearch(startStation)
+    const busesLocationInfo =
+      this.nodeApiService.getBusesLocationByRouteno(routeno)
+
+    const vehicleno: string = this.findClosestBus(
+      nodeInfo[0].lat,
+      nodeInfo[0].lon,
+      busesLocationInfo,
+    ) // 위치 비교해서 가장 가까운 버스 정보
+    const bus: Bus = await this.prisma.bus.findFirst({
+      where: { vehicleno: vehicleno },
+    })
 
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -148,16 +158,14 @@ export class BusService {
 
     await this.prisma.boarding.create({
       data: {
-        busId: busId,
+        busId: bus.id,
         userId: userId,
         startStation: startStation,
         endStation: endStation,
       },
     })
 
-    this.driverService.notifyToDriverUpdates({
-      message: 'Boarding record changed.',
-    })
+    await this.driverService.notifyToDriverUpdates(userId)
 
     return { message: 'Boarding record changed.' }
   }
@@ -177,10 +185,56 @@ export class BusService {
       where: { id: cancelUser.id },
     })
 
-    this.driverService.notifyToDriverUpdates({
-      message: 'Boarding record changed.',
-    })
+    await this.driverService.notifyToDriverUpdates(userId)
 
     return { message: 'Boarding record changed.' }
+  }
+  // Haversine formula를 사용하여 두 지점 간의 거리를 계산하는 함수
+  // Haversine formula를 사용하여 두 지점 간의 거리를 계산하는 함수
+  private getDistanceFromLatLonInKm(
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number,
+  ): number {
+    const R = 6371 // 지구의 반지름 (단위: km)
+    const dLat = this.deg2rad(lat2 - lat1)
+    const dLon = this.deg2rad(lon2 - lon1)
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(this.deg2rad(lat1)) *
+        Math.cos(this.deg2rad(lat2)) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2)
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+    const distance = R * c // 단위: km
+    return distance
+  }
+
+  // 각도를 라디안으로 변환하는 메서드
+  private deg2rad(deg: number): number {
+    return deg * (Math.PI / 180)
+  }
+
+  // 가장 가까운 버스를 찾는 메서드
+  private findClosestBus(stationLat, stationLon, buses) {
+    let closestBusVehicle: string = null
+    let minDistance = Infinity
+
+    for (const bus of buses) {
+      const distance = this.getDistanceFromLatLonInKm(
+        stationLat,
+        stationLon,
+        bus.gpsY,
+        bus.gpsX,
+      )
+
+      if (distance < minDistance) {
+        minDistance = distance
+        closestBusVehicle = bus.vehicleno
+      }
+    }
+
+    return closestBusVehicle
   }
 }
