@@ -7,6 +7,7 @@ import { OdsayApiService } from '../api/odsay-api/odsay-api.service'
 import { NodeApiService } from 'src/api/node-api/node-api.service'
 import { Bus, PrismaClient } from '@prisma/client'
 import { DriverService } from 'src/driver/driver.service'
+
 @Injectable()
 export class BusService {
   constructor(
@@ -28,7 +29,7 @@ export class BusService {
       throw new Error('No station found for the given start location')
     }
 
-    return this.busToStation(station)
+    return await this.busToStation(station)
   }
 
   // 주어진 버스 정류장 위치에 대한 버스 도착 정보를 반환
@@ -45,12 +46,11 @@ export class BusService {
     const stationInfo = stationInfos[0]
 
     const arrivalBusInfos = await this.busStopApiService.busArrivalInfo(
-      stationInfo.citycode,
+      stationInfo.cityCode,
       stationInfo.nodeid,
     )
 
     const busInfos: BusArrivalInfo[] = arrivalBusInfos.map((arrival) => ({
-      // 여기 DTO로 깔끔하게 할 수 있는지 알아보기
       arrprevstationcnt: arrival.arrprevstationcnt.toString(),
       vehicletp: arrival.vehicletp,
       arrtime: Number(arrival.arrtime),
@@ -64,7 +64,6 @@ export class BusService {
     startStation: string,
     endStation: string,
   ): Promise<any> {
-    // 시작 지점에 가장 가까운 정류장을 반환
     console.log('Searching start location for:', startStation)
     const startLocation = await this.locationSearchApiService.performSearch(
       startStation,
@@ -76,9 +75,7 @@ export class BusService {
         'No station found for the given start location',
       )
     }
-    // 동일 api 호출 시 값이 timeout 오류 확인 -> 여러 방식으로 해결해보다가 동시 호출 문제를 해결
-    //await new Promise((resolve) => setTimeout(resolve, 500))
-    // 목적지에 가장 가까운 정류장을 반환
+
     console.log('Searching end location for:', endStation)
     const endLocation = await this.locationSearchApiService.performSearch(
       endStation,
@@ -97,7 +94,6 @@ export class BusService {
     const endY = endLocation.lat
     console.log(`End coordinates: X = ${endX}, Y = ${endY}`)
 
-    // 시작 좌표에서 목적지 좌표까지의 버스 경로 정보 반환
     console.log('Searching bus routes...')
     const busRouteData = await this.odsayApiService.searchBusRoutes(
       startX,
@@ -111,23 +107,23 @@ export class BusService {
   }
 
   async getBusInfoToUser(routeno: string, startStation: string) {
-    // 곧 탑승 할 버스의 정보를 반환
-    const nodeInfo = this.locationSearchApiService.performSearch(startStation)
-    const stationInfo = this.busStopApiService.busToStation(
-      nodeInfo[0].lat,
-      nodeInfo[0].lon,
+    const nodeInfo = await this.locationSearchApiService.performSearch(
+      startStation,
     )
-    const route = this.nodeApiService.getRouteIdByRouteNo(
-      routeno,
-      stationInfo[0].cityCode,
+    console.log(nodeInfo)
+    const stationInfo = await this.busStopApiService.busToStation(
+      nodeInfo.lat,
+      nodeInfo.lon,
     )
-    const busInfo = this.busStopApiService.BoardBusInfo(
-      stationInfo[0].cityCode, // 이 부분 효율적인 방법으로 변경 할 수 있으면 좋겠음
+    console.log(stationInfo)
+    const routeId = await this.nodeApiService.getRouteIdSeoul(routeno)
+    const busInfo = await this.busStopApiService.SeoulBoardBusInfo(
+      'ord', // 이거 찾아서 실제 값이랑 반환 값 다시 수정 필요
       stationInfo[0].nodeid,
-      route[0].routeid,
+      routeId,
     )
     return busInfo
-  } //남은 시간, 정류장 수 , 버스의 노선번호, 남은 정류장 수로 현재 버스의 정류장 위치 확인 가능
+  }
 
   async reserveBus(
     startStation: string,
@@ -135,15 +131,18 @@ export class BusService {
     routeno: string,
     userId: number,
   ) {
-    const nodeInfo = this.locationSearchApiService.performSearch(startStation)
+    const nodeInfo = await this.locationSearchApiService.performSearch(
+      startStation,
+    )
     const busesLocationInfo =
-      this.nodeApiService.getBusesLocationByRouteno(routeno)
+      await this.nodeApiService.getBusesLocationByRouteno(routeno)
 
     const vehicleno: string = this.findClosestBus(
       nodeInfo[0].lat,
       nodeInfo[0].lon,
       busesLocationInfo,
-    ) // 위치 비교해서 가장 가까운 버스 정보
+    )
+
     const bus: Bus = await this.prisma.bus.findFirst({
       where: { vehicleno: vehicleno },
     })
@@ -188,53 +187,5 @@ export class BusService {
     await this.driverService.notifyToDriverUpdates(userId)
 
     return { message: 'Boarding record changed.' }
-  }
-  // Haversine formula를 사용하여 두 지점 간의 거리를 계산하는 함수
-  // Haversine formula를 사용하여 두 지점 간의 거리를 계산하는 함수
-  private getDistanceFromLatLonInKm(
-    lat1: number,
-    lon1: number,
-    lat2: number,
-    lon2: number,
-  ): number {
-    const R = 6371 // 지구의 반지름 (단위: km)
-    const dLat = this.deg2rad(lat2 - lat1)
-    const dLon = this.deg2rad(lon2 - lon1)
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(this.deg2rad(lat1)) *
-        Math.cos(this.deg2rad(lat2)) *
-        Math.sin(dLon / 2) *
-        Math.sin(dLon / 2)
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-    const distance = R * c // 단위: km
-    return distance
-  }
-
-  // 각도를 라디안으로 변환하는 메서드
-  private deg2rad(deg: number): number {
-    return deg * (Math.PI / 180)
-  }
-
-  // 가장 가까운 버스를 찾는 메서드
-  private findClosestBus(stationLat, stationLon, buses) {
-    let closestBusVehicle: string = null
-    let minDistance = Infinity
-
-    for (const bus of buses) {
-      const distance = this.getDistanceFromLatLonInKm(
-        stationLat,
-        stationLon,
-        bus.gpsY,
-        bus.gpsX,
-      )
-
-      if (distance < minDistance) {
-        minDistance = distance
-        closestBusVehicle = bus.vehicleno
-      }
-    }
-
-    return closestBusVehicle
   }
 }

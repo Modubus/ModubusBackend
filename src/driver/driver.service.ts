@@ -9,6 +9,7 @@ import { NodeApiService } from '../api/node-api/node-api.service'
 import { HttpService } from '@nestjs/axios'
 import { Passenger } from './Dto/passengers'
 import { BoardingInfo } from './Dto/boardingInfo'
+import { stringify } from 'querystring'
 
 @Injectable()
 export class DriverService {
@@ -143,23 +144,52 @@ export class DriverService {
     if (!bus) {
       throw new NotFoundException('Bus information is currently unavailable')
     }
-    const currentStation = await this.currentBusLocation(bus.id)
+    const busLocationInfo = await this.nodeApiService.getBusesLocationByRouteno(
+      bus.routnm,
+    ) // 버스 정류장 도착 관련 정보 -> 로직은 되었고 파싱 확인 필요
+    let station: {
+      // id를 가지는게 좋을 듯
+      currentStationId: string | null
+      futureStationId: string | null
+    } = {
+      currentStationId: null, // 여기를 노선 처음 걸로 정해야됨
+      futureStationId: null,
+    }
+
+    station = await this.checkStation(
+      // 버스의 현재 위치와 다음 정류장에 대한 정보를 파악
+      busLocationInfo.stopFlag,
+      busLocationInfo.stId,
+      station,
+    )
+
     const futurePassengers = await this.countFuturePassengers(
       this.passengers,
-      currentStation,
+      station.currentStationId,
       bus.id,
     )
+
     const busInfo: BoardingInfo = {
       requires: ['이건 요구사항 어떻게 받는지 모름'], // 추후 수정 필요
-      currentStation: currentStation,
+      Station: station, // 나중에 정류소 명으로 바꿀듯
       CurrentPassengers: this.passengers,
       futurePassengers: futurePassengers,
     }
     return busInfo
   }
 
+  private async checkStation(stopFlag, stId, station) {
+    // 여기 로직이 이게 맞나??
+    if (stopFlag === 1) station.currentStationId = station.currentStationId // 1은 무조건 현재 위치, current는 현재 정류장 혹은 다음 정류장 전의 정류장
+    if (stopFlag === 0) station.futureStationId = stId // 0은 가는 중 그러니까 무조건 다음 정류장
+    return station
+  }
+
   // 특정 버스의 현재 정류장 이후의 승객 수 계산
+  // passenger의 current는 노선별 탑승 인원 파악용
+  // passenger의 end는 하차인원 파악용
   async countFuturePassengers(
+    // 위에 해결하고 하고 싶음
     passengers: Passenger[],
     currentStation: string,
     busId: number,
@@ -196,11 +226,7 @@ export class DriverService {
     return passengerCounts
   }
 
-  //  return {
-  //  stopFlag: stopFlag,
-  //  stId: stId,
-  //} //지난 정류장과 같은 정류장인데 stopFlag0이면 아직 운행 중, 지난 정류장과 같은 이름인데 stopFlag1이면 도착, 지난 정류장과 다른 이름인데 stopFlag0이면 출발
-
+  // 버스 정류장 변화 후 callbback함수
   public startMonitoringBusLocation(
     busId: number,
     callback: (locationChanged: boolean) => void,
@@ -208,42 +234,27 @@ export class DriverService {
     let previousLocation: any = null
 
     const intervalId = setInterval(async () => {
-      const currentLocation = await this.currentBusLocation(busId)
-      if (this.hasLocationChanged(previousLocation, currentLocation)) {
+      const busInfo = await this.getBusInfoToDriver(busId)
+      let currentStationId = busInfo.Station.currentStationId
+      const futureStationId = busInfo.Station.futureStationId
+      if (this.hasLocationChanged(currentStationId, futureStationId)) {
         callback(true)
         clearInterval(intervalId)
       }
-      previousLocation = currentLocation
     }, 60000)
   }
 
-  // 위치 변경 감지
+  // 위치 변경 감지 확인 로직
   private hasLocationChanged(
-    previousLocation: any,
-    currentLocation: any,
+    // 위에 있는거랑 비교
+    currentStationId: string,
+    futureStationId: string,
   ): boolean {
-    return (
-      !previousLocation ||
-      previousLocation.stopId !== currentLocation.stopId ||
-      previousLocation.stopFlag !== currentLocation.stopFlag
-    )
+    return !currentStationId || currentStationId !== futureStationId
   }
 
   // 실시간 버스 정류장 위치 및 이전 정류장 정보 확인
   // 노선 번호 -> 같은 노선의 우
-  private async currentBusLocation(busId: number): Promise<any> {
-    const bus = await this.prisma.bus.findUnique({
-      where: { id: busId },
-    })
-    const buses = await this.nodeApiService.getBusesLocationByRouteno(
-      bus.routnm,
-    )
-    const vehicleInfo = buses.find((b) => b.vehicleno === bus.vehicleno)
-
-    const vehicleId = parseInt(vehicleInfo.vehId)
-    const busLocationInfo = this.nodeApiService.getBusInfoByVehId(vehicleId)
-    return busLocationInfo // 정류소 id, 정류소 도착 정보, 실시간 위치 정보
-  }
 
   // 탑승자 변경 사항 알림
   async notifyToDriverUpdates(userId: number) {

@@ -27,7 +27,7 @@ export class BusStopApiService {
         (item: any) => ({
           nodeid: item.nodeid,
           nodenm: item.nodenm,
-          citycode: item.citycode,
+          cityCode: item.cityCode,
         }),
       )
 
@@ -70,7 +70,7 @@ export class BusStopApiService {
 
   // Provides information about the bus to board
   async BoardBusInfo(
-    cityCode: string,
+    cityCode: string, // 정류장
     nodeId: string,
     routeId: string,
   ): Promise<BusArrivalInfo[]> {
@@ -87,6 +87,42 @@ export class BusStopApiService {
       if (item) {
         const busArrivalInfos: BusArrivalInfo[] = [
           {
+            arrprevstationcnt: item.arrprevstationcnt,
+            vehicletp: item.routetp,
+            arrtime: item.arrtime,
+            routeno: item.routeno.toString(),
+          },
+        ]
+
+        return busArrivalInfos
+      } else {
+        throw new Error('Invalid response format')
+      }
+    } catch (error) {
+      console.error('Failed to fetch bus arrival information:', error)
+      throw new Error('Failed to fetch bus arrival information')
+    }
+  }
+  async SeoulBoardBusInfo(
+    //&stId=124000414&busRouteId=100100578&ord=29
+    ord: string, // 정류장
+    nodeId: string,
+    routeId: string,
+  ): Promise<BusArrivalInfo[]> {
+    const serviceKey = process.env.BUS_API_KEY
+
+    const url = `http://ws.bus.go.kr/api/rest/arrive/getArrInfoByRoute?serviceKey=${serviceKey}&stId=${nodeId}&busRouteId=${routeId}&ord=${ord}`
+
+    try {
+      const response = await axios.get(url)
+      const data = response.data
+
+      const item = data?.response?.body?.items?.item
+
+      if (item) {
+        const busArrivalInfos: BusArrivalInfo[] = [
+          {
+            // 버스 도착시간,
             arrprevstationcnt: item.arrprevstationcnt,
             vehicletp: item.routetp,
             arrtime: item.arrtime,

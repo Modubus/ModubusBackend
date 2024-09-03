@@ -32,7 +32,7 @@ export class NodeApiService {
   }
   async getRouteIdByRouteNo(routeNo: string, cityCode: string): Promise<any> {
     const url = `${this.nodeIdByroutnm}&pageNo=1&numOfRows=10&_type=json&cityCode=${cityCode}&routeNo=${routeNo}`
-
+    console.log(url) //&pageNo=1&numOfRows=10&_type=json&cityCode=25&routeNo=5
     try {
       const response = await lastValueFrom(
         this.httpService.get(url).pipe(map((response) => response.data)),
@@ -231,24 +231,27 @@ export class NodeApiService {
       )
     }
   }
+
   async getBusesLocationByRouteno(routeno: string) {
     // 값이 나오는지 확인
     try {
       const routeId = await this.getRouteIdSeoul(routeno)
-      const url = `${this.getBusPosByRtid}&busRouteId=${routeId}`
+
+      const url = `${this.getBusPosByVehId}&busRouteId=${routeId}&resultType=json`
+
       const response = await axios.get(url)
+      //stord 정류소 순번
+      //stopFlag 정류소 도착여부
+      // plainNo 차량번호
+      // stId 정류소 고유 ID - 현재 정류소인지 확인 필요
 
-      const result = await xml2js.parseStringPromise(response.data)
-
-      const items = result.ServiceResult.msgBody[0].itemList
-      const buses = items.map((item) => ({
+      const bus = items.map((item) => ({
         vehicleno: item.plainNo[0],
-        gpsX: parseFloat(item.gpsX[0]),
-        gpsY: parseFloat(item.gpsY[0]),
-        vehId: item.vehId[0],
+        stord: item.stord[0],
+        stopFalg: item.stopFlag,
+        stId: item.stId[0],
       }))
-
-      return buses
+      return bus
     } catch (error) {
       console.error('Error fetching buses', error)
       throw new HttpException(
@@ -257,6 +260,7 @@ export class NodeApiService {
       )
     }
   }
+
   async getBusInfoByVehId(vehId: number) {
     const url = `${this.getBusPosByVehId}&vehId=${vehId}`
     const response = await axios.get(url)
