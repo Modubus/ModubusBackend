@@ -12,6 +12,20 @@ export class UserService {
     private readonly jwtService: JwtService,
   ) {}
 
+  /** 등록된 유저인 경우 true, 등록되지 않은 유저인 경우 false 반환 */
+  async isFingerprintRegistered(fingerprint: string) {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        fingerprint,
+      },
+      select: {
+        id: true,
+      },
+    })
+
+    return user ? true : false
+  }
+
   async getUsers() {
     return await this.prisma.user.findMany()
   }
@@ -40,11 +54,11 @@ export class UserService {
     return true
   }
 
-  async issueJwtTokens(loginUserDto: LoginUserDto) {
+  async issueJwtTokens(fingerprint: string) {
     const userId = (
       await this.prisma.user.findFirst({
         where: {
-          username: loginUserDto.username,
+          fingerprint,
         },
         select: {
           id: true,
@@ -52,7 +66,7 @@ export class UserService {
       })
     ).id
 
-    return await this.createJwtTokens(userId, loginUserDto.username)
+    return await this.createJwtTokens(userId, fingerprint)
   }
 
   async reissueAccessToken(refreshToken: string) {
@@ -66,15 +80,15 @@ export class UserService {
     return await this.createJwtTokens(userId, username)
   }
 
-  async createJwtTokens(userId: number, username: string) {
+  async createJwtTokens(userId: number, fingerprint: string) {
     const accessToken = await this.jwtService.signAsync(
-      { userId, username },
+      { userId, fingerprint },
       {
         expiresIn: '10m',
       },
     )
     const refreshToken = await this.jwtService.signAsync(
-      { userId, username },
+      { userId, fingerprint },
       {
         expiresIn: '14d',
       },
@@ -86,19 +100,12 @@ export class UserService {
     }
   }
 
-  async createUser(createUserDto: CreateUserDto) {
-    const hashedPassword = await bcrypt.hash(createUserDto.password, 10)
-
-    const user = await this.prisma.user.create({
+  async createUser(fingerprint: string) {
+    return await this.prisma.user.create({
       data: {
-        username: createUserDto.username,
-        password: hashedPassword,
-        email: createUserDto.email,
-        disableType: createUserDto.disableType,
+        fingerprint,
       },
     })
-
-    return user
   }
 
   async updateUser(userId: number, updateUserDto: UpdateUserDto) {

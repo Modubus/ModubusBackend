@@ -30,6 +30,30 @@ export class UserController {
   REFRESH_TOKEN_NAME = 'refresh_token'
   constructor(private readonly userService: UserService) {}
 
+  /**
+   * fingerprint를 바탕으로 등록된 기기(유저)인지 확인합니다.
+   * 등록된 유저라면, 토큰 생성 후 반환
+   * 등록되지 않은 유저라면, DB에 기기 정보 등록 후 토큰 반환
+   */
+  @Post('check-device')
+  async checkDevice(
+    @Body('fingerprint') fingerprint: string,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const isUserAlreadyExists = await this.userService.isFingerprintRegistered(
+      fingerprint,
+    )
+
+    if (!isUserAlreadyExists) {
+      await this.userService.createUser(fingerprint)
+    }
+
+    // jwt 발급
+    const tokens = await this.userService.issueJwtTokens(fingerprint)
+    res.setHeader('Authorization', `Bearer ${tokens.accessToken}`)
+    res.cookie(this.REFRESH_TOKEN_NAME, tokens.refreshToken)
+  }
+
   @Post('login')
   async login(
     @Body() loginUserDto: LoginUserDto,
