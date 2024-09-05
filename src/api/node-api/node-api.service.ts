@@ -1,12 +1,16 @@
+import { Prisma } from '@prisma/client'
+import { UserModule } from './../../user/user.module'
 import { HttpService } from '@nestjs/axios'
 import { Injectable, HttpException, HttpStatus } from '@nestjs/common'
 import axios from 'axios'
+import { PrismaClient } from '@prisma/client'
 import { lastValueFrom } from 'rxjs'
 import { map } from 'rxjs/operators'
 import * as xml2js from 'xml2js'
 
 @Injectable()
 export class NodeApiService {
+  private readonly prisma: PrismaClient
   private readonly nodeIdByroutnm: string
   private readonly getRoute: string
   private readonly getSeoulIdByRoute: string
@@ -129,7 +133,10 @@ export class NodeApiService {
       const parsedData = await xml2js.parseStringPromise(response)
 
       const seoulRoute = parsedData.ServiceResult.msgBody[0].itemList.map(
-        (item) => item.stationNm[0],
+        (item) => ({
+          stationNm: item.stationNm[0],
+          station: item.station[0],
+        }),
       )
 
       return seoulRoute
@@ -143,15 +150,14 @@ export class NodeApiService {
   }
 
   async getRouteDetails(routeNo: string, cityCode: string) {
+    // stationId도 나오게 해야됨
     try {
       if (cityCode === '21') {
         const routeIds = await this.getRouteIdSeoul(routeNo)
 
         const stopByRoute = await this.getSeoulRouteById(routeIds)
 
-        const stopNames = stopByRoute.map((stop) => stop)
-
-        return { routeNo: routeNo, stops: stopNames }
+        return { routeNo: routeNo, stops: stopByRoute }
       }
 
       const busInfo = await this.getRouteIdByRouteNo(routeNo, cityCode)
@@ -232,30 +238,51 @@ export class NodeApiService {
     }
   }
 
-  async getBusesLocationByRouteno(routeno: string) {
-    // 값이 나오는지 확인
+  async getBusesLocationByRouteno(routeno: string, vehicleno: string) {
     try {
-      const routeId = await this.getRouteIdSeoul(routeno)
-
-      const url = `${this.getBusPosByVehId}&busRouteId=${routeId}&resultType=json`
-
+      const routeId = await this.getRouteIdSeoul(routeno) // 노선 아이디로 차량 아이디 찾아야 됨 실수로 지움
+      const vehicleId = await this.getVehicleIdByrouteIdAndVehicleNo(
+        routeId,
+        vehicleno,
+      )
+      const url = `${this.getBusPosByVehId}&vehId=${vehicleId}&resultType=json`
+      console.log(url)
       const response = await axios.get(url)
-      //stord 정류소 순번
-      //stopFlag 정류소 도착여부
-      // plainNo 차량번호
-      // stId 정류소 고유 ID - 현재 정류소인지 확인 필요
-
-      const bus = items.map((item) => ({
-        vehicleno: item.plainNo[0],
-        stord: item.stord[0],
-        stopFalg: item.stopFlag,
-        stId: item.stId[0],
+      console.log(response)
+      const items = response.data.msgBody.itemList
+      console.log(items)
+      const busLocationInfo = items.map((item) => ({
+        vehicleno: item.plainNo, // 차량번호
+        stord: item.stOrd, // 정류소 순번
+        stopFlag: item.stopFlag, // 정류소 도착 여부
+        stId: item.stId, // 정류소 고유 ID
       }))
-      return bus
+      console.log('busLocationInfo', busLocationInfo)
+      return busLocationInfo
     } catch (error) {
       console.error('Error fetching buses', error)
       throw new HttpException(
         'Failed to fetch route details.',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      )
+    }
+  }
+  async getVehicleIdByrouteIdAndVehicleNo(routeId, vehicleno) {
+    try {
+      const url = `${this.getBusPosByRtid}&busRouteId=${routeId}&resultType=json`
+      const response = await axios.get(url)
+      const items = response.data.msgBody.itemList
+      const checkInfo = items.map((item) => ({
+        vehId: item.vehId,
+        vehicleno: item.plainNo,
+      }))
+      const foundBus = checkInfo.find((item) => item.vehicleno === vehicleno)
+      const vehicleId = foundBus.vehId
+      return vehicleId
+    } catch (error) {
+      console.log(error)
+      throw new HttpException(
+        'Failed to fetch vehicleNo',
         HttpStatus.INTERNAL_SERVER_ERROR,
       )
     }

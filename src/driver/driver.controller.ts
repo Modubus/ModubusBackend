@@ -132,11 +132,12 @@ export class DriverController {
   }
 
   @Get('bus-info')
-  async getBusInfo(@Query('busId') busId: number) {
+  async getBusInfo(@Query('busId') busId: string) {
     try {
       // Step 1: 버스 정보 조회
-      const busInfo = await this.driverService.getBusInfoToDriver(busId)
-
+      const busInfo = await this.driverService.getBusInfoToDriver(
+        parseInt(busId),
+      )
       // Step 2: 버스 정보 유무 확인
       if (!busInfo) {
         throw new HttpException(
@@ -149,10 +150,10 @@ export class DriverController {
       return new Promise((resolve, reject) => {
         // Step 4: 버스 위치 모니터링 시작 및 상태 변화 감지
         this.driverService.startMonitoringBusLocation(
-          busId,
+          busInfo,
           (locationChanged) => {
             if (locationChanged) {
-              resolve({ message: 'Bus location has changed' })
+              resolve({ message: 'Bus location has changed', busInfo: busInfo })
             }
           },
         )
@@ -160,7 +161,10 @@ export class DriverController {
         // Step 5: 승객 정보 업데이트 감지
         this.driverService.dataToPassengerUpdates((data) => {
           if (data) {
-            resolve({ message: 'Passenger data has been updated' })
+            resolve({
+              message: 'Passenger data has been updated',
+              busInfo: busInfo,
+            })
           } else {
             reject(
               new HttpException('No data available', HttpStatus.NO_CONTENT),

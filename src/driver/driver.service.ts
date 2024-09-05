@@ -3,13 +3,13 @@ import {
   ConflictException,
   HttpException,
   NotFoundException,
+  HttpStatus,
 } from '@nestjs/common'
 import { PrismaClient } from '@prisma/client'
 import { NodeApiService } from '../api/node-api/node-api.service'
 import { HttpService } from '@nestjs/axios'
 import { Passenger } from './Dto/passengers'
 import { BoardingInfo } from './Dto/boardingInfo'
-import { stringify } from 'querystring'
 
 @Injectable()
 export class DriverService {
@@ -17,7 +17,11 @@ export class DriverService {
   private nodeApiService: NodeApiService
   private passengersCallback: Array<(passengers: Passenger[]) => void> = []
   private passengers: Passenger[] = []
-
+  private previousStationId: string | null = null
+  private stationInfo: {
+    currentStationId: string | null
+    futureStationId: string | null
+  } = null
   constructor() {
     this.prisma = new PrismaClient()
     const httpService = new HttpService()
@@ -138,58 +142,142 @@ export class DriverService {
 
   // longPolling 방식으로 기사에게 정보 업데이트
   async getBusInfoToDriver(busId: number): Promise<BoardingInfo> {
-    const bus = await this.prisma.bus.findUnique({
-      where: { id: busId },
-    })
-    if (!bus) {
-      throw new NotFoundException('Bus information is currently unavailable')
-    }
-    const busLocationInfo = await this.nodeApiService.getBusesLocationByRouteno(
-      bus.routnm,
-    ) // 버스 정류장 도착 관련 정보 -> 로직은 되었고 파싱 확인 필요
-    let station: {
-      // id를 가지는게 좋을 듯
-      currentStationId: string | null
-      futureStationId: string | null
-    } = {
-      currentStationId: null, // 여기를 노선 처음 걸로 정해야됨
-      futureStationId: null,
-    }
+    try {
+      const bus = await this.prisma.bus.findUnique({
+        where: { id: busId },
+      })
+      console.log('Bus ID:', busId)
+      if (!bus) {
+        throw new NotFoundException('Bus information is currently unavailable')
+      }
 
-    station = await this.checkStation(
-      // 버스의 현재 위치와 다음 정류장에 대한 정보를 파악
-      busLocationInfo.stopFlag,
-      busLocationInfo.stId,
-      station,
-    )
+      // 버스 위치 정보를 가져오는 로직
+      const busLocationInfo =
+        await this.nodeApiService.getBusesLocationByRouteno(
+          bus.routnm,
+          bus.vehicleno,
+        )
+      console.log('Bus Location Info:', busLocationInfo)
 
-    const futurePassengers = await this.countFuturePassengers(
-      this.passengers,
-      station.currentStationId,
-      bus.id,
-    )
+      if (!busLocationInfo || busLocationInfo.length === 0) {
+        throw new NotFoundException(
+          'No location information available for the bus',
+        )
+      }
+      const routeDetail = await this.nodeApiService.getRouteDetails(
+        bus.routnm,
+        '21',
+      )
+      // 초기 정류장 정보를 설정
+      if (this.stationInfo === null) {
+        this.stationInfo = {
+          currentStationId: routeDetail.stops[0].station,
+          futureStationId: null,
+        }
+      }
 
-    const busInfo: BoardingInfo = {
-      requires: ['이건 요구사항 어떻게 받는지 모름'], // 추후 수정 필요
-      Station: station, // 나중에 정류소 명으로 바꿀듯
-      CurrentPassengers: this.passengers,
-      futurePassengers: futurePassengers,
+      // 현재 위치와 다음 정류장 정보를 업데이트
+      this.stationInfo = await this.checkStation(
+        busLocationInfo[0].stopFlag,
+        busLocationInfo[0].stId,
+        routeDetail,
+        this.stationInfo,
+      )
+      console.log('Updated Station Info:', this.stationInfo) // 여기까지 해결
+
+      // 미래 탑승자 수 파악
+      const futurePassengers = await this.countFuturePassengers(
+        this.passengers,
+        this.stationInfo.currentStationId!,
+        bus.id,
+      )
+      console.log('Future Passengers:', futurePassengers)
+
+      // 반환할 버스 정보 구성
+      const busInfo: BoardingInfo = {
+        requires: ['이건 요구사항 어떻게 받는지 모름'], // 추후 수정 필요
+        Station: this.stationInfo, // 나중에 정류소 명으로 바꿀 예정
+        CurrentPassengers: this.passengers,
+        futurePassengers: futurePassengers,
+      }
+      console.log('Final Bus Info:', busInfo)
+
+      return busInfo
+    } catch (error) {
+      console.error('Error in getBusInfoToDriver:', error.message)
+      throw new HttpException(
+        'Internal Server Error',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      )
     }
-    return busInfo
   }
 
-  private async checkStation(stopFlag, stId, station) {
-    // 여기 로직이 이게 맞나??
-    if (stopFlag === 1) station.currentStationId = station.currentStationId // 1은 무조건 현재 위치, current는 현재 정류장 혹은 다음 정류장 전의 정류장
-    if (stopFlag === 0) station.futureStationId = stId // 0은 가는 중 그러니까 무조건 다음 정류장
+  // 정류장 정보 확인 로직
+  private async checkStation(
+    stopFlag: string,
+    stId: string,
+    routeDetail,
+    station: {
+      currentStationId: string | null
+      futureStationId: string | null
+    },
+  ): Promise<{
+    currentStationId: string | null
+    futureStationId: string | null
+  }> {
+    console.log('checkStation - stopFlag:', stopFlag)
+    console.log('checkStation - stId:', stId)
+
+    if (stopFlag === '1') {
+      // 현재 정류장에 도착했을 경우
+      station.currentStationId = stId
+      station.futureStationId = this.getNextStationId(stId, routeDetail)
+    } else if (stopFlag === '0') {
+      // 다음 정류장으로 향하는 중일 경우
+      station.currentStationId = station.futureStationId
+      station.futureStationId = this.getNextStationId(
+        station.currentStationId,
+        routeDetail,
+      )
+    } else {
+      console.warn(`Unexpected stopFlag value: ${stopFlag}`)
+      // 예상치 못한 값에 대해 별도의 처리 또는 로깅을 수행
+    }
+
+    console.log('checkStation - stationInfo:', station)
     return station
   }
 
+  // 다음 정류장 ID를 가져오는 메서드
+  private getNextStationId(
+    currentStationId: string,
+    routeDetail,
+  ): string | null {
+    console.log('getNextStationIdC', currentStationId)
+    console.log('getNextStationIdR', routeDetail)
+
+    // currentStationId와 일치하는 정류장의 인덱스를 찾음
+    const currentIndex = routeDetail.stops.findIndex(
+      (stop) => stop.station === currentStationId,
+    )
+
+    if (currentIndex !== -1 && currentIndex < routeDetail.stops.length - 1) {
+      // 다음 정류장의 station 값을 반환
+      const nextStation = routeDetail.stops[currentIndex + 1].station
+      console.log('Next Station:', nextStation)
+      return nextStation
+    } else if (currentIndex === routeDetail.stops.length - 1) {
+      // 현재 정류장이 마지막 정류장일 경우
+      console.log('This is the last station in the route.')
+      return null
+    } else {
+      // currentStationId에 해당하는 정류장을 찾지 못한 경우
+      console.log(`Station with ID ${currentStationId} not found.`)
+      return null
+    }
+  }
   // 특정 버스의 현재 정류장 이후의 승객 수 계산
-  // passenger의 current는 노선별 탑승 인원 파악용
-  // passenger의 end는 하차인원 파악용
   async countFuturePassengers(
-    // 위에 해결하고 하고 싶음
     passengers: Passenger[],
     currentStation: string,
     busId: number,
@@ -206,9 +294,13 @@ export class DriverService {
       bus.routnm,
       bus.busCompany.cityCode,
     )
+    //console.log(stopsInfo)
     const stops = stopsInfo.stops
+    console.log('정류장 이름', stops[0].station)
+    const currentStationIndex = stops.findIndex(
+      (stop) => stop.station === currentStation,
+    )
 
-    const currentStationIndex = stops.indexOf(currentStation)
     if (currentStationIndex === -1) {
       throw new Error(
         `Current station ${currentStation} not found in the route.`,
@@ -226,35 +318,37 @@ export class DriverService {
     return passengerCounts
   }
 
-  // 버스 정류장 변화 후 callbback함수
+  // 버스 위치 정보의 변경을 모니터링하는 함수
   public startMonitoringBusLocation(
-    busId: number,
+    busInfo,
     callback: (locationChanged: boolean) => void,
   ): void {
-    let previousLocation: any = null
+    // 초기 실행 시 이전 정류장 ID를 설정
+    if (this.previousStationId === null) {
+      this.previousStationId = busInfo.Station.currentStationId
+    }
 
     const intervalId = setInterval(async () => {
-      const busInfo = await this.getBusInfoToDriver(busId)
-      let currentStationId = busInfo.Station.currentStationId
-      const futureStationId = busInfo.Station.futureStationId
-      if (this.hasLocationChanged(currentStationId, futureStationId)) {
+      const currentStationId = busInfo.Station.currentStationId
+
+      // 이전 정류장 값과 현재 정류장 값을 비교
+      if (this.hasLocationChanged(this.previousStationId, currentStationId)) {
         callback(true)
         clearInterval(intervalId)
+      } else {
+        // 이전 정류장을 현재 정류장으로 업데이트
+        this.previousStationId = currentStationId
       }
-    }, 60000)
+    }, 60000) // 1분마다 polling
   }
 
-  // 위치 변경 감지 확인 로직
+  // 위치 변경 여부 확인 로직
   private hasLocationChanged(
-    // 위에 있는거랑 비교
-    currentStationId: string,
-    futureStationId: string,
+    previousStationId: string | null,
+    currentStationId: string | null,
   ): boolean {
-    return !currentStationId || currentStationId !== futureStationId
+    return previousStationId !== currentStationId
   }
-
-  // 실시간 버스 정류장 위치 및 이전 정류장 정보 확인
-  // 노선 번호 -> 같은 노선의 우
 
   // 탑승자 변경 사항 알림
   async notifyToDriverUpdates(userId: number) {

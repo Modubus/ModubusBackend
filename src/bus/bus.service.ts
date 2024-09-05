@@ -134,14 +134,10 @@ export class BusService {
     const nodeInfo = await this.locationSearchApiService.performSearch(
       startStation,
     )
-    const busesLocationInfo =
-      await this.nodeApiService.getBusesLocationByRouteno(routeno)
+    //const busesLocationInfo =
+    //  await this.nodeApiService.getBusesLocationByRouteno(routeno, )
 
-    const vehicleno: string = this.findClosestBus(
-      nodeInfo[0].lat,
-      nodeInfo[0].lon,
-      busesLocationInfo,
-    )
+    const vehicleno: string = ''
 
     const bus: Bus = await this.prisma.bus.findFirst({
       where: { vehicleno: vehicleno },
