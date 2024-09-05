@@ -1,6 +1,5 @@
 import { PrismaClient, Require } from '@prisma/client'
-import { CreateUserDto, LoginUserDto, UpdateUserDto } from './dto/user.dto'
-import * as bcrypt from 'bcryptjs'
+import { UpdateUserDto } from './dto/user.dto'
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common'
 import { JwtService } from '@nestjs/jwt'
 import { UserFavoriteDto } from './dto/user-favorite.dto'
@@ -30,30 +29,6 @@ export class UserService {
     return await this.prisma.user.findMany()
   }
 
-  async getUserByUsername(username: string) {
-    return await this.prisma.user.findMany({
-      where: {
-        username,
-      },
-    })
-  }
-
-  async validateUser(loginUserDto: LoginUserDto) {
-    const user = await this.prisma.user.findFirst({
-      where: {
-        username: loginUserDto.username,
-      },
-    })
-
-    if (
-      !user ||
-      !(await bcrypt.compare(loginUserDto.password, user.password))
-    ) {
-      return false
-    }
-    return true
-  }
-
   async issueJwtTokens(fingerprint: string) {
     const userId = (
       await this.prisma.user.findFirst({
@@ -70,14 +45,14 @@ export class UserService {
   }
 
   async reissueAccessToken(refreshToken: string) {
-    const { userId, username } = await this.jwtService.verifyAsync(
+    const { userId, fingerprint } = await this.jwtService.verifyAsync(
       refreshToken,
       {
         secret: process.env.JWT_SECRET,
       },
     )
 
-    return await this.createJwtTokens(userId, username)
+    return await this.createJwtTokens(userId, fingerprint)
   }
 
   async createJwtTokens(userId: number, fingerprint: string) {
@@ -109,20 +84,12 @@ export class UserService {
   }
 
   async updateUser(userId: number, updateUserDto: UpdateUserDto) {
-    let hashedPassword: string
-    const { password, ...data } = updateUserDto
-
-    if (password) {
-      hashedPassword = await bcrypt.hash(password, 10)
-    }
-
     const user = await this.prisma.user.update({
       where: {
         id: userId,
       },
       data: {
-        ...data,
-        password: hashedPassword ? hashedPassword : undefined,
+        ...updateUserDto,
       },
     })
 

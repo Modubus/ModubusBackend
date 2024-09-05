@@ -1,5 +1,4 @@
 import { Prisma, Require } from '@prisma/client'
-import { CreateUserDto, LoginUserDto, UpdateUserDto } from './dto/user.dto'
 import {
   UserFavoriteService,
   UserNeedsService,
@@ -24,6 +23,7 @@ import { RequestWithUser } from 'src/lib/class/request-with-user.class'
 import { Request, Response } from 'express'
 import { JwtAuthGuard } from 'src/lib/guard/jwt-auth.guard'
 import { UserFavoriteDto } from './dto/user-favorite.dto'
+import { UpdateUserDto } from './dto/user.dto'
 
 @Controller('user')
 export class UserController {
@@ -54,25 +54,6 @@ export class UserController {
     res.cookie(this.REFRESH_TOKEN_NAME, tokens.refreshToken)
   }
 
-  @Post('login')
-  async login(
-    @Body() loginUserDto: LoginUserDto,
-    @Res({ passthrough: true }) res: Response,
-  ) {
-    // id, pw 확인
-    if (!(await this.userService.validateUser(loginUserDto))) {
-      throw new HttpException(
-        'check your username or password again',
-        HttpStatus.UNAUTHORIZED,
-      )
-    }
-
-    // jwt 발급
-    const tokens = await this.userService.issueJwtTokens(loginUserDto)
-    res.setHeader('Authorization', `Bearer ${tokens.accessToken}`)
-    res.cookie(this.REFRESH_TOKEN_NAME, tokens.refreshToken)
-  }
-
   /**
    * Access Token이 만료된 경우, Refresh Token을 사용해 Access Token을 재발급합니다.
    * @returns
@@ -94,45 +75,6 @@ export class UserController {
     const tokens = await this.userService.reissueAccessToken(refreshToken)
     res.setHeader('authorization', `Bearer ${tokens.accessToken}`)
     res.cookie(this.REFRESH_TOKEN_NAME, tokens.refreshToken)
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Post('logout')
-  async logout(@Res({ passthrough: true }) res: Response) {
-    res.clearCookie(this.REFRESH_TOKEN_NAME)
-  }
-
-  /**
-   * 모든 유저 정보를 불러옵니다. (테스트용 기능, 삭제 예정)
-   */
-  @Get()
-  async getUsers() {
-    try {
-      return await this.userService.getUsers()
-    } catch (error) {
-      console.log(error)
-      throw new HttpException('Unknown Error', HttpStatus.INTERNAL_SERVER_ERROR)
-    }
-  }
-
-  /**
-   * 새로운 유저 정보를 저장합니다.(회원가입)
-   * @param createUserDto 유저 정보
-   */
-  @Post()
-  async createUser(@Body() createUserDto: CreateUserDto) {
-    try {
-      return await this.userService.createUser(createUserDto)
-    } catch (error) {
-      console.log(error)
-      if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        throw new HttpException(
-          'User already exists or invalid request',
-          HttpStatus.CONFLICT,
-        )
-      }
-      throw new HttpException('Unknown Error', HttpStatus.INTERNAL_SERVER_ERROR)
-    }
   }
 
   /**
