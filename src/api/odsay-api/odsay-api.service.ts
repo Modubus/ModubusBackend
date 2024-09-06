@@ -26,11 +26,11 @@ export class OdsayApiService {
     endY: number,
   ): Promise<BusRouteInfo[]> {
     const url = `https://api.odsay.com/v1/api/searchPubTransPathT?SX=${startX}&SY=${startY}&EX=${endX}&EY=${endY}&OPT=0&SearchType=0&SearchPathType=0&apiKey=${this.apiKey}`
-
+    console.log(url)
     try {
       const response = await axios.get(url)
       const data = response.data
-
+      console.log(data)
       if (data.result && data.result.path) {
         const busRoutes: BusRouteInfo[] = data.result.path
           .map((path: any) => {

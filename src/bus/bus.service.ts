@@ -39,25 +39,16 @@ export class BusService {
       station.lon,
     )
 
-    if (!stationInfos.length) {
+    if (!stationInfos) {
       throw new Error('Failed to fetch bus station information')
     }
 
     const stationInfo = stationInfos[0]
-
-    const arrivalBusInfos = await this.busStopApiService.busArrivalInfo(
-      stationInfo.cityCode,
-      stationInfo.nodeid,
+    console.log('stationInfo', stationInfo)
+    const busArrivalInfo = this.busStopApiService.busArrivalInfo(
+      stationInfo.arsId,
     )
-
-    const busInfos: BusArrivalInfo[] = arrivalBusInfos.map((arrival) => ({
-      arrprevstationcnt: arrival.arrprevstationcnt.toString(),
-      vehicletp: arrival.vehicletp,
-      arrtime: Number(arrival.arrtime),
-      routeno: arrival.routeno,
-    }))
-
-    return busInfos
+    return busArrivalInfo
   }
 
   async getBusStationEnd(
@@ -117,9 +108,12 @@ export class BusService {
     )
     console.log(stationInfo)
     const routeId = await this.nodeApiService.getRouteIdSeoul(routeno)
+    const nodeId = stationInfo.arsId
+    const ordInfo = await this.busStopApiService.busArrivalInfo(nodeId)
+    const ord = ordInfo[0].sectOrd1 //  여기가 여러개 나오면 rtNm랑 routeno를 비교해야됨
     const busInfo = await this.busStopApiService.SeoulBoardBusInfo(
-      'ord', // 이거 찾아서 실제 값이랑 반환 값 다시 수정 필요
-      stationInfo[0].nodeid,
+      ord, // 이거 찾아서 실제 값이랑 반환 값 다시 수정 필요
+      nodeId,
       routeId,
     )
     return busInfo
@@ -128,35 +122,43 @@ export class BusService {
   async reserveBus(
     startStation: string,
     endStation: string,
-    routeno: string,
+    vehicleno: string,
     userId: number,
   ) {
-    const nodeInfo = await this.locationSearchApiService.performSearch(
-      startStation,
-    )
-    //const busesLocationInfo =
-    //  await this.nodeApiService.getBusesLocationByRouteno(routeno, )
-
-    const vehicleno: string = ''
-
-    const bus: Bus = await this.prisma.bus.findFirst({
+    const bus = await this.prisma.bus.findUnique({
       where: { vehicleno: vehicleno },
     })
 
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-    })
+    if (!bus) {
+      throw new NotFoundException(`User with ID ${vehicleno} not found`)
+    }
 
-    if (!user) {
-      throw new NotFoundException(`User with ID ${userId} not found`)
+    const routeDetail = await this.nodeApiService.getRouteDetails(
+      bus.routnm,
+      '21',
+    )
+
+    const startStationInfo = routeDetail.stops.find(
+      (stop) => stop.stationNm === startStation,
+    )
+
+    const endStationInfo = routeDetail.stops.find(
+      (stop) => stop.stationNm === endStation,
+    )
+
+    // If either station is not found, throw an error
+    if (!startStationInfo || !endStationInfo) {
+      throw new NotFoundException(
+        `Start or end station not found in the route: ${startStation}, ${endStation}`,
+      )
     }
 
     await this.prisma.boarding.create({
       data: {
         busId: bus.id,
         userId: userId,
-        startStation: startStation,
-        endStation: endStation,
+        startStation: startStationInfo.station,
+        endStation: endStationInfo.station,
       },
     })
 

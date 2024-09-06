@@ -43,7 +43,6 @@ export class BusController {
     }
   }
 
-  // 내일 계발 예정(driver/busInfo polling or ws 방식 데이터와 함께)
   @Get('/station')
   async getBusInfoToUser(
     @Query('routeno') routeno: string,
@@ -61,14 +60,14 @@ export class BusController {
   async reserveBus(
     @Body('startStation') startStation: string,
     @Body('endStation') endStation: string,
-    @Body('routeno') routeno: string,
+    @Body('vehicleno') vehicleno: string,
     @Body('userId') userId: number,
   ) {
     try {
       return await this.busService.reserveBus(
         startStation,
         endStation,
-        routeno,
+        vehicleno,
         userId,
       )
     } catch (error) {
@@ -87,5 +86,3 @@ export class BusController {
     }
   }
 }
-
-// 

@@ -339,7 +339,7 @@ export class DriverService {
         // 이전 정류장을 현재 정류장으로 업데이트
         this.previousStationId = currentStationId
       }
-    }, 60000) // 1분마다 polling
+    }, 5000) // 1분마다 polling
   }
 
   // 위치 변경 여부 확인 로직
