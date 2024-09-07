@@ -20,7 +20,7 @@ export class BusService {
   ) {}
 
   // 출발지에서 가장 가까운 버스 정류장의 버스 도착 정보를 반환
-  async getBusStationStart(startStation: string): Promise<BusArrivalInfo[]> {
+  async getBusStationStart(startStation: string): Promise<any> {
     const station = await this.locationSearchApiService.performSearch(
       startStation,
     )
@@ -33,7 +33,7 @@ export class BusService {
   }
 
   // 주어진 버스 정류장 위치에 대한 버스 도착 정보를 반환
-  async busToStation(station: Location): Promise<BusArrivalInfo[]> {
+  async busToStation(station: Location): Promise<any> {
     const stationInfos = await this.busStopApiService.busToStation(
       station.lat,
       station.lon,
@@ -106,17 +106,23 @@ export class BusService {
       nodeInfo.lat,
       nodeInfo.lon,
     )
-    console.log(stationInfo)
+    console.log('stationInfo', stationInfo)
     const routeId = await this.nodeApiService.getRouteIdSeoul(routeno)
-    const nodeId = stationInfo.arsId
+    console.log('routeId', routeId)
+    const nodeId = stationInfo[0].arsId // 여기서 가장 가까운 값이 나오게 해야겠음 어처피 나중에 사용자 위치 받아오는게 편할 듯 싶음
+    console.log('nodeId', nodeId)
     const ordInfo = await this.busStopApiService.busArrivalInfo(nodeId)
-    const ord = ordInfo[0].sectOrd1 //  여기가 여러개 나오면 rtNm랑 routeno를 비교해야됨
-    const busInfo = await this.busStopApiService.SeoulBoardBusInfo(
-      ord, // 이거 찾아서 실제 값이랑 반환 값 다시 수정 필요
+    console.log('ordInfo', ordInfo)
+    const busInfo1 = ordInfo.filter((bus) => bus.rtNm === routeno)
+    const ord = busInfo1[0].sectOrd1
+    console.log('ord', ord)
+    // stdId 이거 찾으면 끝
+    const busInfo2 = await this.busStopApiService.SeoulBoardBusInfo(
+      parseInt(ord), // 이거 찾아서 실제 값이랑 반환 값 다시 수정 필요
       nodeId,
       routeId,
     )
-    return busInfo
+    return busInfo2
   }
 
   async reserveBus(

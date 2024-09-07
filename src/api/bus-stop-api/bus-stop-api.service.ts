@@ -14,19 +14,19 @@ export class BusStopApiService {
     gpsLati: number,
     gpsLong: number,
   ): Promise<{ arsId: string; stationNm: string } | null> {
-    const url = `http://ws.bus.go.kr/api/rest/stationinfo/getStationByPos?ServiceKey=IfJN7A3cBBPttYf%2FFcFWC8pNDT3mi3SRSsDJmyAXQAUOlqvkQhP4ggZkHzhacIhEEJzcswWo8fraVeUBAOxQng%3D%3D&tmX=${gpsLati}&tmY=${gpsLong}&radius=100&resultType=json`
+    const url = `http://ws.bus.go.kr/api/rest/stationinfo/getStationByPos?ServiceKey=IfJN7A3cBBPttYf%2FFcFWC8pNDT3mi3SRSsDJmyAXQAUOlqvkQhP4ggZkHzhacIhEEJzcswWo8fraVeUBAOxQng%3D%3D&tmX=${gpsLong}&tmY=${gpsLati}&radius=100&resultType=json`
 
     try {
       const response = await axios.get(url)
       const data = response.data
 
       // 첫 번째 항목이 있는지 확인하고, 있으면 해당 값을 반환
-
+      console.log('data', data)
       const stationsInfo = data.msgBody.itemList.map((item: any) => ({
         arsId: item.arsId, // 각 항목의 arsId
         stationNm: item.stationNm, // 각 항목의 stationNm
       }))
-
+      console.log('stationsInfo', stationsInfo)
       return stationsInfo
     } catch (error) {
       console.error('Error fetching bus station info:', error)
@@ -64,14 +64,14 @@ export class BusStopApiService {
 
   // Fetches bus arrival information for a given station
   async busArrivalInfo(arsId: string): Promise<any> {
-    const url = `http://ws.bus.go.kr/api/rest/stationinfo/getStationByUidItem?ServiceKey=IfJN7A3cBBPttYf%2FFcFWC8pNDT3mi3SRSsDJmyAXQAUOlqvkQhP4ggZkHzhacIhEEJzcswWo8fraVeUBAOxQng%3D%3D&arsId=${arsId}&resultType=json`
+    const url = `http://ws.bus.go.kr/api/rest/stationinfo/getStationByUid?ServiceKey=IfJN7A3cBBPttYf%2FFcFWC8pNDT3mi3SRSsDJmyAXQAUOlqvkQhP4ggZkHzhacIhEEJzcswWo8fraVeUBAOxQng%3D%3D&arsId=${arsId}&resultType=json`
 
     try {
       const response = await axios.get(url)
       const data = response.data
 
       // 필요한 데이터를 추출
-      const items = data.ServiceResult.msgBody.itemList
+      const items = data.msgBody.itemList
 
       // 필요한 정보를 배열로 변환
       const busInfo = items.map((item: any) => ({
@@ -124,14 +124,15 @@ export class BusStopApiService {
     }
   }
   async SeoulBoardBusInfo(
-    ord: string, // 정류장 순번
+    //- 여기만 수정 하면 끝
+    stdId: number, // 정류장 순번
     nodeId: string, // 정류장 ID
     routeId: string, // 버스 노선 ID
   ): Promise<any> {
     const serviceKey = process.env.BUS_API_KEY // 환경 변수에서 API 키 로드
 
     const url = `http://ws.bus.go.kr/api/rest/arrive/getArrInfoByRoute?serviceKey=${serviceKey}&stId=${nodeId}&busRouteId=${routeId}&ord=${ord}`
-
+    console.log(url)
     try {
       const response = await axios.get(url)
       const result = await xml2js.parseStringPromise(response.data, {
