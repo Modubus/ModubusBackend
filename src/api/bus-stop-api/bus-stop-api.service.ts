@@ -11,6 +11,7 @@ export class BusStopApiService {
 
   // Fetches bus stations near a given GPS location
   async busToStation(
+    // getNearbyBusStations 서울 버전
     gpsLati: number,
     gpsLong: number,
   ): Promise<{ arsId: string; stationNm: string } | null> {
@@ -25,6 +26,7 @@ export class BusStopApiService {
       const stationsInfo = data.msgBody.itemList.map((item: any) => ({
         arsId: item.arsId, // 각 항목의 arsId
         stationNm: item.stationNm, // 각 항목의 stationNm
+        stationId: item.stationId,
       }))
       console.log('stationsInfo', stationsInfo)
       return stationsInfo
@@ -75,7 +77,7 @@ export class BusStopApiService {
 
       // 필요한 정보를 배열로 변환
       const busInfo = items.map((item: any) => ({
-        sectOrd1: item.sectOrd1, // ord 번호
+        staOrd: item.staOrd, // ord 번호
         busRouteId: item.busRouteId, // 노선 번호
         arrmsg1: item.arrmsg1, // 도착정보
         rtNm: item.rtNm, // 노선 명
@@ -124,23 +126,26 @@ export class BusStopApiService {
     }
   }
   async SeoulBoardBusInfo(
-    //- 여기만 수정 하면 끝
-    stdId: number, // 정류장 순번
-    nodeId: string, // 정류장 ID
+    ord: number, // 정류장 순번
+    stId: string, // 정류소 고유 ID
     routeId: string, // 버스 노선 ID
   ): Promise<any> {
     const serviceKey = process.env.BUS_API_KEY // 환경 변수에서 API 키 로드
 
-    const url = `http://ws.bus.go.kr/api/rest/arrive/getArrInfoByRoute?serviceKey=${serviceKey}&stId=${nodeId}&busRouteId=${routeId}&ord=${ord}`
+    const url = `http://ws.bus.go.kr/api/rest/arrive/getArrInfoByRoute?serviceKey=${serviceKey}&stId=${stId}&busRouteId=${routeId}&ord=${ord}&resultType=json`
     console.log(url)
+
     try {
       const response = await axios.get(url)
-      const result = await xml2js.parseStringPromise(response.data, {
-        explicitArray: false,
-      })
 
-      const itemList = result.ServiceResult.msgBody.itemList
+      // JSON 형식 데이터 처리
+      const result = response.data
+
+      // msgBody와 itemList에서 데이터를 추출
+      const itemList = result.msgBody.itemList[0]
+
       if (itemList) {
+        // 버스 도착 정보를 반환
         const busArrivalInfos = {
           arrmsg1: itemList.arrmsg1, // 첫번째 버스 도착시간
           busId1: itemList.vehId1,

@@ -1,3 +1,4 @@
+import { BusStopApiService } from './../bus-stop-api/bus-stop-api.service'
 import {
   HttpException,
   HttpStatus,
@@ -14,7 +15,6 @@ import * as https from 'https'
 @Injectable()
 export class LocationSearchApiService {
   private busStops: BusStop[] = []
-
   // 주어진 Station 키워드로 장소를 검색하고, 검색된 장소의 상세 정보를 반환
   async searchPlace(Station: string) {
     console.log('Station:', Station)
@@ -64,44 +64,28 @@ export class LocationSearchApiService {
 
   // 주어진 GPS 좌표(gpsLati, gpsLong)를 기반으로 근처 버스 정류장 정보를 반환
   async getNearbyBusStations(
+    // getNearbyBusStations 서울 버전
     gpsLati: number,
     gpsLong: number,
-  ): Promise<BusStationInfo[]> {
-    const serviceKey = process.env.BUS_API_KEY
+  ): Promise<{ arsId: string; stationNm: string } | null> {
+    const url = `http://ws.bus.go.kr/api/rest/stationinfo/getStationByPos?ServiceKey=IfJN7A3cBBPttYf%2FFcFWC8pNDT3mi3SRSsDJmyAXQAUOlqvkQhP4ggZkHzhacIhEEJzcswWo8fraVeUBAOxQng%3D%3D&tmX=${gpsLong}&tmY=${gpsLati}&radius=100&resultType=json`
 
-    const url = `https://apis.data.go.kr/1613000/BusSttnInfoInqireService/getCrdntPrxmtSttnList?serviceKey=${serviceKey}&pageNo=1&numOfRows=10&_type=json&gpsLati=${gpsLati}&gpsLong=${gpsLong}`
-    console.log('qwer:', url)
     try {
       const response = await axios.get(url)
-      console.log('qqqq:', response)
       const data = response.data
 
-      const item =
-        data.response.body.items.item instanceof Array
-          ? data.response.body.items.item[0]
-          : data.response.body.items.item
-
-      console.log('data123:', data)
-      console.log('item123', item)
-      console.log('detail123', data.response.body.items)
-
-      const busStationInfos: BusStationInfo[] = [
-        {
-          citycode: item.citycode,
-          gpslati: item.gpslati,
-          gpslong: item.gpslong,
-          nodeid: item.nodeid,
-          nodenm: item.nodenm,
-          nodeno: item.nodeno,
-        },
-      ]
-
-      console.log('busStationInfos123:', busStationInfos)
-
-      return busStationInfos
+      // 첫 번째 항목이 있는지 확인하고, 있으면 해당 값을 반환
+      console.log('data', data)
+      const stationsInfo = data.msgBody.itemList.map((item: any) => ({
+        stationNm: item.stationNm, // 각 항목의 stationNm
+        gpsX: item.gpsX,
+        gpsY: item.gpsY,
+      }))
+      console.log('stationsInfo', stationsInfo)
+      return stationsInfo
     } catch (error) {
-      console.error('Failed to fetch nearby bus stations:', error)
-      throw error
+      console.error('Error fetching bus station info:', error)
+      throw new Error('Failed to fetch bus station info')
     }
   }
 
@@ -126,16 +110,16 @@ export class LocationSearchApiService {
 
       console.log('nearbyStation', nearbyStations)
 
-      if (!nearbyStations.length) {
+      if (!nearbyStations) {
         throw new NotFoundException('No nearby bus stations found')
       }
 
       const firstStation = nearbyStations[0]
 
       const location: Location = {
-        nodenm: firstStation.nodenm,
-        lat: firstStation.gpslati,
-        lon: firstStation.gpslong,
+        nodenm: firstStation.stationNm,
+        lat: firstStation.gpsY,
+        lon: firstStation.gpsX,
       }
 
       console.log('location', location)

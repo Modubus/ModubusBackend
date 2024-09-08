@@ -28,8 +28,16 @@ export class BusService {
     if (!station) {
       throw new Error('No station found for the given start location')
     }
+    const stationInfo = await this.busToStation(station)
 
-    return await this.busToStation(station)
+    const stations = stationInfo.map((bus: any) => {
+      return {
+        arrmsg1: bus.arrmsg1,
+        rtNm: bus.rtNm,
+      }
+    })
+
+    return stations
   }
 
   // 주어진 버스 정류장 위치에 대한 버스 도착 정보를 반환
@@ -101,27 +109,54 @@ export class BusService {
     const nodeInfo = await this.locationSearchApiService.performSearch(
       startStation,
     )
-    console.log(nodeInfo)
+    console.log('nodeInfo', nodeInfo)
+
     const stationInfo = await this.busStopApiService.busToStation(
       nodeInfo.lat,
       nodeInfo.lon,
     )
     console.log('stationInfo', stationInfo)
+
     const routeId = await this.nodeApiService.getRouteIdSeoul(routeno)
     console.log('routeId', routeId)
-    const nodeId = stationInfo[0].arsId // 여기서 가장 가까운 값이 나오게 해야겠음 어처피 나중에 사용자 위치 받아오는게 편할 듯 싶음
-    console.log('nodeId', nodeId)
-    const ordInfo = await this.busStopApiService.busArrivalInfo(nodeId)
-    console.log('ordInfo', ordInfo)
-    const busInfo1 = ordInfo.filter((bus) => bus.rtNm === routeno)
-    const ord = busInfo1[0].sectOrd1
-    console.log('ord', ord)
-    // stdId 이거 찾으면 끝
-    const busInfo2 = await this.busStopApiService.SeoulBoardBusInfo(
-      parseInt(ord), // 이거 찾아서 실제 값이랑 반환 값 다시 수정 필요
-      nodeId,
-      routeId,
-    )
+
+    let busInfo2 = null
+
+    // stationInfo 배열을 순회하면서 각 정류장에 대한 버스 정보를 확인
+    for (let i = 0; i < Object.keys(stationInfo).length; i++) {
+      const arsId = stationInfo[i].arsId // arsId로 해당 정류장의 ID를 얻음
+      console.log('arsId', arsId)
+
+      const busInfo = await this.busStopApiService.busArrivalInfo(arsId)
+      console.log('ordInfo', busInfo)
+
+      // 버스 번호가 routeno와 일치하는 버스 정보를 필터링
+      const busInfo1 = busInfo.filter((bus) => bus.rtNm === routeno)
+      console.log('busInfo1', busInfo1)
+      // 일치하는 버스가 있으면 처리
+      if (busInfo1.length > 0) {
+        const ord = busInfo1[0].staOrd
+        console.log('ord', ord)
+        const routeId = busInfo1[0].busRouteId
+        console.log('routeId', routeId)
+        const stId = stationInfo[i].stationId
+        console.log('stId', stId)
+
+        // 해당 ord, nodeId, stId로 버스 정보 조회
+        busInfo2 = await this.busStopApiService.SeoulBoardBusInfo(
+          parseInt(ord),
+          stId,
+          routeId,
+        )
+        break // 일치하는 버스를 찾았으면 더 이상 순회를 하지 않음
+      }
+    }
+
+    // 만약 일치하는 버스 정보가 없으면 에러 처리
+    if (!busInfo2) {
+      throw new Error('No matching bus found for the provided route number')
+    }
+
     return busInfo2
   }
 
@@ -136,14 +171,14 @@ export class BusService {
     })
 
     if (!bus) {
-      throw new NotFoundException(`User with ID ${vehicleno} not found`)
+      throw new NotFoundException(`ID ${vehicleno} not found`)
     }
 
     const routeDetail = await this.nodeApiService.getRouteDetails(
       bus.routnm,
       '21',
     )
-
+    console.log('routeDetail', routeDetail)
     const startStationInfo = routeDetail.stops.find(
       (stop) => stop.stationNm === startStation,
     )
@@ -151,13 +186,6 @@ export class BusService {
     const endStationInfo = routeDetail.stops.find(
       (stop) => stop.stationNm === endStation,
     )
-
-    // If either station is not found, throw an error
-    if (!startStationInfo || !endStationInfo) {
-      throw new NotFoundException(
-        `Start or end station not found in the route: ${startStation}, ${endStation}`,
-      )
-    }
 
     await this.prisma.boarding.create({
       data: {
