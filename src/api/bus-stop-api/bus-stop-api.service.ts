@@ -1,9 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import axios from 'axios'
-import { BusStationInfo } from './Dto/busStationInfo'
 import { BusArrivalInfo } from './Dto/busArrivalInfo'
-import xml2js from 'xml2js'
-import { response } from 'express'
 
 @Injectable()
 export class BusStopApiService {
