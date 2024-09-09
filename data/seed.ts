@@ -93,18 +93,14 @@ async function main() {
   // 유저 데이터 삽입
   const user1 = await prisma.user.create({
     data: {
-      username: 'user1',
-      password: 'password1',
-      email: 'user1@example.com',
+      fingerprint: 'fingerprint_user1',
       disableType: DisableType.OLD,
     },
   })
 
   const user2 = await prisma.user.create({
     data: {
-      username: 'user2',
-      password: 'password2',
-      email: 'user2@example.com',
+      fingerprint: 'fingerprint_user2',
       disableType: DisableType.PSC,
     },
   })

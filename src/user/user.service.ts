@@ -1,6 +1,5 @@
 import { PrismaClient, Require } from '@prisma/client'
-import { CreateUserDto, LoginUserDto, UpdateUserDto } from './dto/user.dto'
-import * as bcrypt from 'bcryptjs'
+import { UpdateUserDto } from './dto/user.dto'
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common'
 import { JwtService } from '@nestjs/jwt'
 import { UserFavoriteDto } from './dto/user-favorite.dto'
@@ -12,39 +11,29 @@ export class UserService {
     private readonly jwtService: JwtService,
   ) {}
 
+  /** 등록된 유저인 경우 true, 등록되지 않은 유저인 경우 false 반환 */
+  async isFingerprintRegistered(fingerprint: string) {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        fingerprint,
+      },
+      select: {
+        id: true,
+      },
+    })
+
+    return user ? true : false
+  }
+
   async getUsers() {
     return await this.prisma.user.findMany()
   }
 
-  async getUserByUsername(username: string) {
-    return await this.prisma.user.findMany({
-      where: {
-        username,
-      },
-    })
-  }
-
-  async validateUser(loginUserDto: LoginUserDto) {
-    const user = await this.prisma.user.findFirst({
-      where: {
-        username: loginUserDto.username,
-      },
-    })
-
-    if (
-      !user ||
-      !(await bcrypt.compare(loginUserDto.password, user.password))
-    ) {
-      return false
-    }
-    return true
-  }
-
-  async issueJwtTokens(loginUserDto: LoginUserDto) {
+  async issueJwtTokens(fingerprint: string) {
     const userId = (
       await this.prisma.user.findFirst({
         where: {
-          username: loginUserDto.username,
+          fingerprint,
         },
         select: {
           id: true,
@@ -52,29 +41,29 @@ export class UserService {
       })
     ).id
 
-    return await this.createJwtTokens(userId, loginUserDto.username)
+    return await this.createJwtTokens(userId, fingerprint)
   }
 
   async reissueAccessToken(refreshToken: string) {
-    const { userId, username } = await this.jwtService.verifyAsync(
+    const { userId, fingerprint } = await this.jwtService.verifyAsync(
       refreshToken,
       {
         secret: process.env.JWT_SECRET,
       },
     )
 
-    return await this.createJwtTokens(userId, username)
+    return await this.createJwtTokens(userId, fingerprint)
   }
 
-  async createJwtTokens(userId: number, username: string) {
+  async createJwtTokens(userId: number, fingerprint: string) {
     const accessToken = await this.jwtService.signAsync(
-      { userId, username },
+      { userId, fingerprint },
       {
         expiresIn: '10m',
       },
     )
     const refreshToken = await this.jwtService.signAsync(
-      { userId, username },
+      { userId, fingerprint },
       {
         expiresIn: '14d',
       },
@@ -86,36 +75,21 @@ export class UserService {
     }
   }
 
-  async createUser(createUserDto: CreateUserDto) {
-    const hashedPassword = await bcrypt.hash(createUserDto.password, 10)
-
-    const user = await this.prisma.user.create({
+  async createUser(fingerprint: string) {
+    return await this.prisma.user.create({
       data: {
-        username: createUserDto.username,
-        password: hashedPassword,
-        email: createUserDto.email,
-        disableType: createUserDto.disableType,
+        fingerprint,
       },
     })
-
-    return user
   }
 
   async updateUser(userId: number, updateUserDto: UpdateUserDto) {
-    let hashedPassword: string
-    const { password, ...data } = updateUserDto
-
-    if (password) {
-      hashedPassword = await bcrypt.hash(password, 10)
-    }
-
     const user = await this.prisma.user.update({
       where: {
         id: userId,
       },
       data: {
-        ...data,
-        password: hashedPassword ? hashedPassword : undefined,
+        ...updateUserDto,
       },
     })
 

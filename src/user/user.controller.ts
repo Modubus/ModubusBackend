@@ -1,5 +1,4 @@
 import { Prisma, Require } from '@prisma/client'
-import { CreateUserDto, LoginUserDto, UpdateUserDto } from './dto/user.dto'
 import {
   UserFavoriteService,
   UserNeedsService,
@@ -24,27 +23,33 @@ import { RequestWithUser } from 'src/lib/class/request-with-user.class'
 import { Request, Response } from 'express'
 import { JwtAuthGuard } from 'src/lib/guard/jwt-auth.guard'
 import { UserFavoriteDto } from './dto/user-favorite.dto'
+import { UpdateUserDto } from './dto/user.dto'
 
 @Controller('user')
 export class UserController {
   REFRESH_TOKEN_NAME = 'refresh_token'
   constructor(private readonly userService: UserService) {}
 
-  @Post('login')
-  async login(
-    @Body() loginUserDto: LoginUserDto,
+  /**
+   * fingerprint를 바탕으로 등록된 기기(유저)인지 확인합니다.
+   * 등록된 유저라면, 토큰 생성 후 반환
+   * 등록되지 않은 유저라면, DB에 기기 정보 등록 후 토큰 반환
+   */
+  @Post('check-device')
+  async checkDevice(
+    @Body('fingerprint') fingerprint: string,
     @Res({ passthrough: true }) res: Response,
   ) {
-    // id, pw 확인
-    if (!(await this.userService.validateUser(loginUserDto))) {
-      throw new HttpException(
-        'check your username or password again',
-        HttpStatus.UNAUTHORIZED,
-      )
+    const isUserAlreadyExists = await this.userService.isFingerprintRegistered(
+      fingerprint,
+    )
+
+    if (!isUserAlreadyExists) {
+      await this.userService.createUser(fingerprint)
     }
 
     // jwt 발급
-    const tokens = await this.userService.issueJwtTokens(loginUserDto)
+    const tokens = await this.userService.issueJwtTokens(fingerprint)
     res.setHeader('Authorization', `Bearer ${tokens.accessToken}`)
     res.cookie(this.REFRESH_TOKEN_NAME, tokens.refreshToken)
   }
@@ -70,45 +75,6 @@ export class UserController {
     const tokens = await this.userService.reissueAccessToken(refreshToken)
     res.setHeader('authorization', `Bearer ${tokens.accessToken}`)
     res.cookie(this.REFRESH_TOKEN_NAME, tokens.refreshToken)
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Post('logout')
-  async logout(@Res({ passthrough: true }) res: Response) {
-    res.clearCookie(this.REFRESH_TOKEN_NAME)
-  }
-
-  /**
-   * 모든 유저 정보를 불러옵니다. (테스트용 기능, 삭제 예정)
-   */
-  @Get()
-  async getUsers() {
-    try {
-      return await this.userService.getUsers()
-    } catch (error) {
-      console.log(error)
-      throw new HttpException('Unknown Error', HttpStatus.INTERNAL_SERVER_ERROR)
-    }
-  }
-
-  /**
-   * 새로운 유저 정보를 저장합니다.(회원가입)
-   * @param createUserDto 유저 정보
-   */
-  @Post()
-  async createUser(@Body() createUserDto: CreateUserDto) {
-    try {
-      return await this.userService.createUser(createUserDto)
-    } catch (error) {
-      console.log(error)
-      if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        throw new HttpException(
-          'User already exists or invalid request',
-          HttpStatus.CONFLICT,
-        )
-      }
-      throw new HttpException('Unknown Error', HttpStatus.INTERNAL_SERVER_ERROR)
-    }
   }
 
   /**

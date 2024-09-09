@@ -31,8 +31,8 @@ enum Require {
 
 /// 버스 회사 목록
 enum CompanyName {
-  Yuseong  /// 유성운수
-  Sinchon  /// 신촌교통
+  Yuseong /// 유성운수
+  Sinchon /// 신촌교통
   Shinil ///신일여객
   Paju ///파주여객
   // TODO: 버스 회사 목록 추가
@@ -40,9 +40,7 @@ enum CompanyName {
 
 model User {
   id            Int            @id @default(autoincrement())
-  username      String         @unique() /// 회원가입 시 입력한 ID
-  password      String
-  email         String
+  fingerprint   String         @unique
   disableType   DisableType    @default(OLD) @map("disable_type")
   requires      UserRequire[]
   userFavorites UserFavorite[]
