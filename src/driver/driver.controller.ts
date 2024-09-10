@@ -4,7 +4,8 @@ import {
   HttpException,
   HttpStatus,
   Body,
-  HttpCode,
+  Get,
+  Query,
 } from '@nestjs/common'
 import { DriverService } from './driver.service'
 
@@ -115,31 +116,70 @@ export class DriverController {
 
   // 버스 아이디가 있어야 변경 가능 - 로직 바뀔 수 있음
   @Post('bus-operation')
-  @HttpCode(204)
   async changeOperation(
     @Body('busId') busId: number,
     @Body('vehicleno') vehicleno: string,
   ) {
-    await this.driverService.changeOperation(busId, vehicleno)
-  }
-  /*
-  @Get('bus-info')
-  async getBusInfo() {
     try {
-      const busInfo = await this.driverService.getBusInfo()
-      if (!busInfo) {
-        throw new HttpException(
-          'Bus information is currently unavailable',
-          HttpStatus.SERVICE_UNAVAILABLE,
-        )
-      }
-      return busInfo
+      await this.driverService.changeOperation(busId, vehicleno)
+      return { message: 'Operation changed successfully' } // 성공 시 메시지 반환
     } catch (error) {
       throw new HttpException(
-        error.message || 'Internal Server Error',
+        'Operation could not be changed',
         HttpStatus.INTERNAL_SERVER_ERROR,
       )
     }
   }
-  */
+
+  @Get('bus-info')
+  async getBusInfo(@Query('busId') busId: string) {
+    try {
+      // Step 1: 버스 정보 조회
+      const busInfo = await this.driverService.getBusInfoToDriver(
+        parseInt(busId),
+      )
+      // Step 2: 버스 정보 유무 확인
+      if (!busInfo) {
+        throw new HttpException(
+          'Bus information not found',
+          HttpStatus.NOT_FOUND,
+        )
+      }
+
+      // Step 3: 비동기적 데이터 대기 및 반환
+      return new Promise((resolve, reject) => {
+        // Step 4: 버스 위치 모니터링 시작 및 상태 변화 감지
+        this.driverService.startMonitoringBusLocation(
+          busInfo,
+          (locationChanged) => {
+            if (locationChanged) {
+              resolve({ message: 'Bus location has changed', busInfo: busInfo })
+            }
+          },
+        )
+
+        // Step 5: 승객 정보 업데이트 감지
+        this.driverService.dataToPassengerUpdates((data) => {
+          if (data) {
+            resolve({
+              message: 'Passenger data has been updated',
+              busInfo: busInfo,
+            })
+          } else {
+            reject(
+              new HttpException('No data available', HttpStatus.NO_CONTENT),
+            )
+          }
+        })
+      })
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error
+      }
+      throw new HttpException(
+        'Internal Server Error',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      )
+    }
+  }
 }

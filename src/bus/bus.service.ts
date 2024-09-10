@@ -5,17 +5,22 @@ import { Location } from './Dto/location'
 import { BusStopApiService } from '../api/bus-stop-api/bus-stop-api.service'
 import { OdsayApiService } from '../api/odsay-api/odsay-api.service'
 import { NodeApiService } from 'src/api/node-api/node-api.service'
+import { Bus, PrismaClient } from '@prisma/client'
+import { DriverService } from 'src/driver/driver.service'
+
 @Injectable()
 export class BusService {
   constructor(
+    private prisma: PrismaClient,
     private nodeApiService: NodeApiService,
     private locationSearchApiService: LocationSearchApiService,
     private busStopApiService: BusStopApiService,
     private odsayApiService: OdsayApiService,
+    private driverService: DriverService,
   ) {}
 
   // 출발지에서 가장 가까운 버스 정류장의 버스 도착 정보를 반환
-  async getBusStationStart(startStation: string): Promise<BusArrivalInfo[]> {
+  async getBusStationStart(startStation: string): Promise<any> {
     const station = await this.locationSearchApiService.performSearch(
       startStation,
     )
@@ -23,44 +28,41 @@ export class BusService {
     if (!station) {
       throw new Error('No station found for the given start location')
     }
+    const stationInfo = await this.busToStation(station)
 
-    return this.busToStation(station)
+    const stations = stationInfo.map((bus: any) => {
+      return {
+        arrmsg1: bus.arrmsg1,
+        rtNm: bus.rtNm,
+      }
+    })
+
+    return stations
   }
 
   // 주어진 버스 정류장 위치에 대한 버스 도착 정보를 반환
-  async busToStation(station: Location): Promise<BusArrivalInfo[]> {
+  async busToStation(station: Location): Promise<any> {
     const stationInfos = await this.busStopApiService.busToStation(
       station.lat,
       station.lon,
     )
 
-    if (!stationInfos.length) {
+    if (!stationInfos) {
       throw new Error('Failed to fetch bus station information')
     }
 
     const stationInfo = stationInfos[0]
-
-    const arrivalBusInfos = await this.busStopApiService.busArrivalInfo(
-      stationInfo.citycode,
-      stationInfo.nodeid,
+    console.log('stationInfo', stationInfo)
+    const busArrivalInfo = this.busStopApiService.busArrivalInfo(
+      stationInfo.arsId,
     )
-
-    const busInfos: BusArrivalInfo[] = arrivalBusInfos.map((arrival) => ({
-      // 여기 DTO로 깔끔하게 할 수 있는지 알아보기
-      arrprevstationcnt: arrival.arrprevstationcnt.toString(),
-      vehicletp: arrival.vehicletp,
-      arrtime: Number(arrival.arrtime),
-      routeno: arrival.routeno,
-    }))
-
-    return busInfos
+    return busArrivalInfo
   }
 
   async getBusStationEnd(
     startStation: string,
     endStation: string,
   ): Promise<any> {
-    // 시작 지점에 가장 가까운 정류장을 반환
     console.log('Searching start location for:', startStation)
     const startLocation = await this.locationSearchApiService.performSearch(
       startStation,
@@ -72,9 +74,7 @@ export class BusService {
         'No station found for the given start location',
       )
     }
-    // 동일 api 호출 시 값이 timeout 오류 확인 -> 여러 방식으로 해결해보다가 동시 호출 문제를 해결
-    //await new Promise((resolve) => setTimeout(resolve, 500))
-    // 목적지에 가장 가까운 정류장을 반환
+
     console.log('Searching end location for:', endStation)
     const endLocation = await this.locationSearchApiService.performSearch(
       endStation,
@@ -93,7 +93,6 @@ export class BusService {
     const endY = endLocation.lat
     console.log(`End coordinates: X = ${endX}, Y = ${endY}`)
 
-    // 시작 좌표에서 목적지 좌표까지의 버스 경로 정보 반환
     console.log('Searching bus routes...')
     const busRouteData = await this.odsayApiService.searchBusRoutes(
       startX,
@@ -106,38 +105,119 @@ export class BusService {
     return busRouteData
   }
 
-  async getBusInfo(routeno: string, startStation: string) {
-    // 곧 탑승 할 버스의 정보를 반환
-    const nodeInfo = this.locationSearchApiService.performSearch(startStation)
-    const stationInfo = this.busStopApiService.busToStation(
-      nodeInfo[0].lat,
-      nodeInfo[0].lon,
+  async getBusInfoToUser(routeno: string, startStation: string) {
+    const nodeInfo = await this.locationSearchApiService.performSearch(
+      startStation,
     )
-    const route = this.nodeApiService.getRouteIdByRouteNo(
-      routeno,
-      stationInfo[0].cityCode,
+    console.log('nodeInfo', nodeInfo)
+
+    const stationInfo = await this.busStopApiService.busToStation(
+      nodeInfo.lat,
+      nodeInfo.lon,
     )
-    const busInfo = this.busStopApiService.BoardBusInfo(
-      stationInfo[0].cityCode,
-      stationInfo[0].nodeid,
-      route[0].routeid,
-    )
-    // getRouteByRouteId(routeId, cityCode) - 노선 경로
-    // getSeoulRouteById(routeId) - 서울 노선 경로
-    return busInfo
+    console.log('stationInfo', stationInfo)
+
+    const routeId = await this.nodeApiService.getRouteIdSeoul(routeno)
+    console.log('routeId', routeId)
+
+    let busInfo2 = null
+
+    // stationInfo 배열을 순회하면서 각 정류장에 대한 버스 정보를 확인
+    for (let i = 0; i < Object.keys(stationInfo).length; i++) {
+      const arsId = stationInfo[i].arsId // arsId로 해당 정류장의 ID를 얻음
+      console.log('arsId', arsId)
+
+      const busInfo = await this.busStopApiService.busArrivalInfo(arsId)
+      console.log('ordInfo', busInfo)
+
+      // 버스 번호가 routeno와 일치하는 버스 정보를 필터링
+      const busInfo1 = busInfo.filter((bus) => bus.rtNm === routeno)
+      console.log('busInfo1', busInfo1)
+      // 일치하는 버스가 있으면 처리
+      if (busInfo1.length > 0) {
+        const ord = busInfo1[0].staOrd
+        console.log('ord', ord)
+        const routeId = busInfo1[0].busRouteId
+        console.log('routeId', routeId)
+        const stId = stationInfo[i].stationId
+        console.log('stId', stId)
+
+        // 해당 ord, nodeId, stId로 버스 정보 조회
+        busInfo2 = await this.busStopApiService.SeoulBoardBusInfo(
+          parseInt(ord),
+          stId,
+          routeId,
+        )
+        break // 일치하는 버스를 찾았으면 더 이상 순회를 하지 않음
+      }
+    }
+
+    // 만약 일치하는 버스 정보가 없으면 에러 처리
+    if (!busInfo2) {
+      throw new Error('No matching bus found for the provided route number')
+    }
+
+    return busInfo2
   }
 
-  // async reserveBus() {
-  //   //  @Post
-  //   // /:stationId/:busId
-  //   // 탑승할 버스의 기사에게 사용자 데이터 보내기
-  //   // (사용자 요구사항, 사용자 출발 정류장 정보, 하차 정류장 정보, 탑승인원 카운트)
-  // }
+  async reserveBus(
+    startStation: string,
+    endStation: string,
+    vehicleno: string,
+    userId: number,
+  ) {
+    const bus = await this.prisma.bus.findUnique({
+      where: { vehicleno: vehicleno },
+    })
 
-  // async cancelBus() {
-  //   //  @Delete
-  //   // /:stationId/:busId
-  //   // 탑승할 버스기사에게 있는 사용자 데이터 삭제하기
-  //   // (사용자 정보 삭제)
-  // }
+    if (!bus) {
+      throw new NotFoundException(`ID ${vehicleno} not found`)
+    }
+
+    const routeDetail = await this.nodeApiService.getRouteDetails(
+      bus.routnm,
+      '21',
+    )
+    console.log('routeDetail', routeDetail)
+    const startStationInfo = routeDetail.stops.find(
+      (stop) => stop.stationNm === startStation,
+    )
+
+    const endStationInfo = routeDetail.stops.find(
+      (stop) => stop.stationNm === endStation,
+    )
+
+    await this.prisma.boarding.create({
+      data: {
+        busId: bus.id,
+        userId: userId,
+        startStation: startStationInfo.station,
+        endStation: endStationInfo.station,
+      },
+    })
+
+    await this.driverService.notifyToDriverUpdates(userId)
+
+    return { message: 'Boarding record changed.' }
+  }
+
+  async cancelBus(userId: number) {
+    const cancelUser = await this.prisma.boarding.findFirst({
+      where: { userId: userId },
+    })
+
+    if (!cancelUser) {
+      throw new NotFoundException(
+        `No boarding record found for user with ID ${userId}`,
+      )
+    }
+
+    await this.prisma.boarding.delete({
+      where: { id: cancelUser.id },
+    })
+
+    await this.driverService.notifyToDriverUpdates(userId)
+
+    return { message: 'Boarding record changed.' }
+  }
 }

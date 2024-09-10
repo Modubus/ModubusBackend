@@ -1,5 +1,6 @@
 import { BusService } from './bus.service'
 import {
+  Body,
   Controller,
   Delete,
   Get,
@@ -42,33 +43,43 @@ export class BusController {
     }
   }
 
-  // 내일 계발 예정(driver/busInfo polling or ws 방식 데이터와 함께)
-  @Get('/stationId')
-  async getBusInf(
+  @Get('/station')
+  async getBusInfoToUser(
     @Query('routeno') routeno: string,
     @Query('startStation') startStation: string,
   ) {
     try {
-      return await this.busService.getBusInfo(routeno, startStation)
+      return await this.busService.getBusInfoToUser(routeno, startStation)
     } catch (error) {
       console.log(error)
       throw new HttpException('Unknown Error', HttpStatus.INTERNAL_SERVER_ERROR)
     }
   }
 
-  @Post('/stationId') // 버스 탑승 입력하기
-  async reserveBus(@Query('routeno') routeno: string) {
+  @Post('/station')
+  async reserveBus(
+    @Body('startStation') startStation: string,
+    @Body('endStation') endStation: string,
+    @Body('vehicleno') vehicleno: string,
+    @Body('userId') userId: number,
+  ) {
     try {
-      //return await this.busService.reserveBus()
+      return await this.busService.reserveBus(
+        startStation,
+        endStation,
+        vehicleno,
+        userId,
+      )
     } catch (error) {
       console.log(error)
       throw new HttpException('Unknown Error', HttpStatus.INTERNAL_SERVER_ERROR)
     }
   }
-  @Delete('/stationId') // 버스 탑승 취소하기
-  async cancelBus(@Query('routeno') routeno: string) {
+
+  @Delete('/station')
+  async cancelBus(@Body('userId') userId: number) {
     try {
-      //return await this.busService.cancelBus()
+      return await this.busService.cancelBus(userId)
     } catch (error) {
       console.log(error)
       throw new HttpException('Unknown Error', HttpStatus.INTERNAL_SERVER_ERROR)
