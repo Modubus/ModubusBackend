@@ -49,11 +49,12 @@ model User {
 
 /// 유저의 즐겨찾기 정보 (노선번호:정류장ID 1:1)
 model UserFavorite {
-  id     Int    @id @default(autoincrement())
-  routnm String /// 버스(노선) 번호
-  nodeId String @map("node_id") /// 정류장 ID
-  User   User?  @relation(fields: [userId], references: [id])
-  userId Int?   @map("user_id")
+  id          Int    @id @default(autoincrement())
+  routnm      String /// 버스(노선) 번호
+  startNodeId String @map("start_node_id") /// 시작(출발) 정류장 ID
+  endNodeId   String @map("end_node_id") /// 끝(도착) 정류장 ID
+  User        User?  @relation(fields: [userId], references: [id])
+  userId      Int?   @map("user_id")
 }
 
 /// 유저의 불편에 따른 요구사항 정보
@@ -83,11 +84,11 @@ model BusCompany {
 }
 
 model Boarding {
-  id            Int     @id @default(autoincrement())
-  bus           Bus     @relation(fields: [busId], references: [id])
-  busId         Int     @map("bus_id")
-  user          User    @relation(fields: [userId], references: [id])
-  userId        Int     @unique @map("user_id")
-  startStation  String 
-  endStation    String
+  id           Int    @id @default(autoincrement())
+  bus          Bus    @relation(fields: [busId], references: [id])
+  busId        Int    @map("bus_id")
+  user         User   @relation(fields: [userId], references: [id])
+  userId       Int    @unique @map("user_id")
+  startStation String
+  endStation   String
 }
