@@ -6,6 +6,7 @@ async function main() {
   // 기존 데이터 삭제
   await prisma.userRequire.deleteMany({})
   await prisma.userFavorite.deleteMany({})
+  await prisma.boarding.deleteMany({})
   await prisma.user.deleteMany({})
   await prisma.bus.deleteMany({})
   await prisma.busCompany.deleteMany({})
@@ -40,49 +41,49 @@ async function main() {
   await prisma.bus.createMany({
     data: [
       {
-        busCompanyId: yuseong.id,
+        busCompanyId: yuseong!.id,
         operation: true,
         vehicleno: '서울70사7781',
         routnm: '7016',
       },
       {
-        busCompanyId: yuseong.id,
+        busCompanyId: yuseong!.id,
         operation: true,
         vehicleno: '서울74사7241',
         routnm: '7013A',
       },
       {
-        busCompanyId: sinchon.id,
+        busCompanyId: sinchon!.id,
         operation: true,
         vehicleno: '서울74사7392',
         routnm: '750B',
       },
       {
-        busCompanyId: sinchon.id,
+        busCompanyId: sinchon!.id,
         operation: true,
         vehicleno: '서울70사7780',
         routnm: '750A',
       },
       {
-        busCompanyId: shinil.id,
+        busCompanyId: shinil!.id,
         operation: true,
         vehicleno: '경기76자1629',
         routnm: '92',
       },
       {
-        busCompanyId: shinil.id,
+        busCompanyId: shinil!.id,
         operation: true,
         vehicleno: '경기76자1853',
         routnm: '9710',
       },
       {
-        busCompanyId: paju.id,
+        busCompanyId: paju!.id,
         operation: true,
         vehicleno: '경기76자2060',
         routnm: 'G7625',
       },
       {
-        busCompanyId: paju.id,
+        busCompanyId: paju!.id,
         operation: true,
         vehicleno: '경기76자1983',
         routnm: 'G7426',
@@ -124,12 +125,14 @@ async function main() {
     data: [
       {
         routnm: '92',
-        nodeId: 'node123',
+        startNodeId: 'start_node123',
+        endNodeId: 'end_node123',
         userId: user1.id,
       },
       {
         routnm: '100',
-        nodeId: 'node456',
+        startNodeId: 'start_node456',
+        endNodeId: 'end_node456',
         userId: user2.id,
       },
     ],

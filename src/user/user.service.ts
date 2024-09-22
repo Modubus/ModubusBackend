@@ -122,7 +122,8 @@ export class UserFavoriteService {
       data: {
         userId,
         routnm: userFavoriteDto.routnm,
-        nodeId: userFavoriteDto.nodeId,
+        startNodeId: userFavoriteDto.startNodeId,
+        endNodeId: userFavoriteDto.endNodeId,
       },
     })
   }
