@@ -14,23 +14,13 @@ import {
 export class BusController {
   constructor(private readonly busService: BusService) {}
 
-  @Get('/station/start') // 실시간 버스운행 정보 받아오기 api 사용
-  async getBusStationStart(@Query('startStation') startStation: string) {
-    try {
-      return await this.busService.getBusStationStart(startStation)
-    } catch (error) {
-      console.log(error)
-      throw new HttpException('Unknown Error', HttpStatus.INTERNAL_SERVER_ERROR)
-    }
-  }
-
-  @Get('/station/end')
+  @Get('/station/des-route')
   async getBusStationEnd(
     @Query('startStation') startStation: string,
     @Query('endStation') endStation: string,
   ) {
     try {
-      const result = await this.busService.getBusStationEnd(
+      const result = await this.busService.findBusDestinationRoute(
         startStation,
         endStation,
       )

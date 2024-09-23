@@ -33,9 +33,6 @@ export class LocationSearchApiService {
       if (response.data.documents.length > 0) {
         const { x, y } = response.data.documents[0] // 첫 번째 문서의 x, y 좌표를 추출
         return { x, y } // x, y 좌표만 반환
-      } else {
-        console.log('검색 결과가 없습니다.')
-        return null // 결과가 없을 경우 null 반환
       }
     } catch (error) {
       console.error('API 요청 실패:', error)
@@ -45,7 +42,6 @@ export class LocationSearchApiService {
 
   // 주어진 GPS 좌표(gpsLati, gpsLong)를 기반으로 근처 버스 정류장 정보를 반환
   async getNearbyBusStations(
-    // getNearbyBusStations 서울 버전
     gpsLati: number,
     gpsLong: number,
   ): Promise<{ arsId: string; stationNm: string } | null> {
@@ -56,13 +52,11 @@ export class LocationSearchApiService {
       const data = response.data
 
       // 첫 번째 항목이 있는지 확인하고, 있으면 해당 값을 반환
-      console.log('data', data)
       const stationsInfo = data.msgBody.itemList.map((item: any) => ({
         stationNm: item.stationNm, // 각 항목의 stationNm
         gpsX: item.gpsX,
         gpsY: item.gpsY,
       }))
-      console.log('stationsInfo', stationsInfo)
       return stationsInfo
     } catch (error) {
       console.error('Error fetching bus station info:', error)
@@ -74,7 +68,6 @@ export class LocationSearchApiService {
   async performSearch(Station: string): Promise<Location> {
     try {
       const place = await this.searchPlace(Station)
-      console.log('palce123:', place)
 
       if (!place) {
         throw new NotFoundException('No places found for the given location')
@@ -84,8 +77,6 @@ export class LocationSearchApiService {
         parseFloat(place.y),
         parseFloat(place.x),
       )
-
-      console.log('nearbyStation', nearbyStations)
 
       if (!nearbyStations) {
         throw new NotFoundException('No nearby bus stations found')
@@ -98,8 +89,6 @@ export class LocationSearchApiService {
         lat: firstStation.gpsY,
         lon: firstStation.gpsX,
       }
-
-      console.log('location', location)
 
       return location
     } catch (error) {

@@ -4,28 +4,26 @@ import { BusRouteInfo } from './Dto/busRouteInfo'
 
 @Injectable()
 export class OdsayApiService {
-  private apiKey = process.env.ODSAY_KEY
+  private apiKey: string
 
-  // 주어진 좌표를 바탕으로 버스 경로를 검색하는 함수
+  constructor() {
+    this.apiKey = process.env.ODSAY_KEY
+  }
+
+  // Search bus routes based on start and end coordinates
   async searchBusRoutes(
     startX: number,
     startY: number,
     endX: number,
     endY: number,
   ): Promise<BusRouteInfo[]> {
-    const url = this.buildApiUrl(startX, startY, endX, endY)
-
+    const url = `https://api.odsay.com/v1/api/searchPubTransPathT?SX=${startX}&SY=${startY}&EX=${endX}&EY=${endY}&OPT=0&SearchType=0&SearchPathType=0&apiKey=${this.apiKey}`
     try {
       const response = await axios.get(url)
       const data = response.data
 
-      if (this.isValidResponse(data)) {
-        return this.parseBusRoutes(data.result.path)
-      } else {
-        throw new Error('Invalid response format')
-      }
+      return this.extractBusRoutes(data)
     } catch (error) {
-      console.error('Failed to fetch bus routes:', error)
       throw new HttpException(
         'Failed to fetch bus routes',
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -33,55 +31,49 @@ export class OdsayApiService {
     }
   }
 
-  // API URL을 생성하는 함수
-  private buildApiUrl(
-    startX: number,
-    startY: number,
-    endX: number,
-    endY: number,
-  ): string {
-    return `https://api.odsay.com/v1/api/searchPubTransPathT?SX=${startX}&SY=${startY}&EX=${endX}&EY=${endY}&OPT=0&SearchType=0&SearchPathType=0&apiKey=${this.apiKey}`
-  }
-
-  // API 응답 형식이 유효한지 확인하는 함수
-  private isValidResponse(data: any): boolean {
-    return data && data.result && data.result.path
-  }
-
-  // 버스 경로 데이터를 파싱하는 함수
-  private parseBusRoutes(paths: any[]): BusRouteInfo[] {
-    return paths
-      .map((path: any) => this.extractBusRouteInfo(path))
-      .filter((route) => route !== null)
-  }
-
-  // 개별 경로에서 버스 정보를 추출하는 함수
-  private extractBusRouteInfo(path: any): BusRouteInfo | null {
-    const busSubPaths = path.subPath.filter(
-      (subPath: any) => subPath.trafficType === 2, // 버스 경로만 필터링
-    )
-
-    if (busSubPaths.length === 0) {
-      return null // 버스 경로가 없는 경우
+  // Extract bus routes from API response data
+  private extractBusRoutes(data: any): BusRouteInfo[] {
+    if (!(data.result && data.result.path)) {
+      throw new Error('Invalid response format')
     }
 
-    const mainBus = busSubPaths[0]
-    const transferBus = busSubPaths[1] || null
+    return data.result.path
+      .map((path: any) => this.parseBusRoute(path))
+      .filter((route: BusRouteInfo) => route !== null) as BusRouteInfo[]
+  }
 
+  // Parse a single bus route and extract relevant information
+  private parseBusRoute(path: any): BusRouteInfo | null {
+    const subPaths = this.getBusSubPaths(path)
+
+    if (subPaths.length === 0) {
+      return null // No bus routes found
+    }
+
+    const transferInfo = this.getTransferInfo(subPaths)
+    const mainBus = subPaths[0]
     const busRouteInfo: BusRouteInfo = {
-      busNumber: mainBus.lane[0].busNo, // 버스 노선 번호
-      busType: mainBus.lane[0].type, // 버스 타입
-      totalTime: path.info.totalTime, // 총 소요 시간
+      firstStartStation: path.info.firstStartStation,
+      lastEndStation: path.info.lastEndStation,
+      busNumber: mainBus.lane[0].busNo,
+      transferInfo: transferInfo.length > 0 ? transferInfo[0] : undefined,
+      totalTime: path.info.totalTime,
     }
-
-    // 환승 버스 정보가 있을 경우
-    if (transferBus) {
-      busRouteInfo.transferInfo = {
-        transferBusNumber: transferBus.lane[0].busNo,
-        transferBusStop: transferBus.startName,
-      }
-    }
-
     return busRouteInfo
+  }
+
+  // Filter out non-bus subPaths and limit to 4 total buses (main + 3 transfers)
+  private getBusSubPaths(path: any): any[] {
+    return path.subPath
+      .filter((subPath: any) => subPath.trafficType === 2) // Filter for buses
+      .slice(0, 4) // Maximum 4 buses (including the initial one)
+  }
+
+  // Extract transfer information if there are multiple bus routes
+  private getTransferInfo(subPaths: any[]): any[] {
+    return subPaths.slice(1).map((subPath: any) => ({
+      transferBusNumber: subPath.lane[0].busNo,
+      transferBusStop: subPath.startName,
+    }))
   }
 }

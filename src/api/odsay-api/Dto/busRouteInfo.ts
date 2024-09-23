@@ -1,6 +1,7 @@
 export interface BusRouteInfo {
+  firstStartStation: string
+  lastEndStation: string
   busNumber: string
-  busType: string
   transferInfo?: {
     transferBusNumber: string
     transferBusStop: string
