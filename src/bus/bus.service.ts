@@ -180,19 +180,19 @@ export class BusService {
     )
     console.log('routeDetail', routeDetail)
     const startStationInfo = routeDetail.stops.find(
-      (stop) => stop.stationNm === startStation,
+      (stop) => stop.nodenm === startStation,
     )
 
     const endStationInfo = routeDetail.stops.find(
-      (stop) => stop.stationNm === endStation,
+      (stop) => stop.nodenm === endStation,
     )
 
     await this.prisma.boarding.create({
       data: {
         busId: bus.id,
         userId: userId,
-        startStation: startStationInfo.station,
-        endStation: endStationInfo.station,
+        startStation: startStationInfo.stationId,
+        endStation: endStationInfo.stationId,
       },
     })
 

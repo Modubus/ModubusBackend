@@ -7,9 +7,13 @@ import {
 } from '@nestjs/common'
 import { PrismaClient } from '@prisma/client'
 import { NodeApiService } from '../api/node-api/node-api.service'
-import { HttpService } from '@nestjs/axios'
 import { Passenger } from './Dto/passengers'
 import { BoardingInfo } from './Dto/boardingInfo'
+import { BusCompanyInfo } from './Dto/busCompanyInfo'
+import { BusInfo } from './Dto/busInfo'
+import { OperationConfirmation } from './Dto/operationConfirmation'
+
+// Interfaces 정의
 
 @Injectable()
 export class DriverService {
@@ -24,17 +28,14 @@ export class DriverService {
   } = null
   constructor() {
     this.prisma = new PrismaClient()
-    const httpService = new HttpService()
-    this.nodeApiService = new NodeApiService(httpService)
   }
 
   // 1. 버스회사 코드 입력 -> 회사id와 도시코드를 반환
-  async findBusCompanyIdAndCityCode(code: string) {
-    const busCompanyInfo = await this.prisma.busCompany.findFirst({
+  async findBusCompanyIdAndCityCode(code: string): Promise<BusCompanyInfo> {
+    return (await this.prisma.busCompany.findFirst({
       where: { code },
       select: { name: true, id: true, cityCode: true },
-    })
-    return busCompanyInfo
+    })) as BusCompanyInfo
   }
 
   // 2. 버스회사 아이디 and (버스 차량번호 or 노선번호)를 통해 관련있는 모든 버스 반환
@@ -42,19 +43,13 @@ export class DriverService {
     busCompanyId: number,
     vehicleno?: string,
     routnm?: string,
-  ) {
-    if (!vehicleno && !routnm) {
-      throw new HttpException('vehicleno or routnm must be provided', 400)
-    }
-
+  ): Promise<BusInfo[]> {
     const buses = await this.prisma.bus.findMany({
       where: {
         busCompanyId,
         OR: [{ vehicleno }, { routnm }],
       },
-      select: {
-        vehicleno: true,
-        routnm: true,
+      include: {
         busCompany: {
           select: {
             cityCode: true,
@@ -64,60 +59,56 @@ export class DriverService {
     })
 
     if (buses.length === 0) {
-      throw new HttpException('No bus found with the provided criteria', 404)
+      throw new NotFoundException('No bus found with the provided criteria')
     }
 
-    const busInfoList = await Promise.all(
-      buses.map(async (bus) => {
-        const startEndNode = await this.nodeApiService.getStartEndNodeByRouteNo(
-          bus.routnm,
-          bus.busCompany.cityCode,
-        )
-
-        return {
-          vehicleno: bus.vehicleno,
-          routnm: bus.routnm,
-          cityCode: bus.busCompany.cityCode,
-          startnodenm: startEndNode.startnodenm,
-          endnodenm: startEndNode.endnodenm,
-        }
-      }),
-    )
-
-    return busInfoList
+    return buses.map((bus) => ({
+      vehicleno: bus.vehicleno,
+      routnm: bus.routnm,
+      cityCode: bus.busCompany.cityCode,
+      startnodenm: '', // Placeholder
+      endnodenm: '', // Placeholder
+    }))
   }
 
   // 3. 회사 아이디, 차량번호 입력 -> 운행상태확인 -> 버스의 id 반환
-  async confirmOperation(busCompanyId: number, vehicleno: string) {
+  async confirmOperation(
+    busCompanyId: number,
+    vehicleno: string,
+  ): Promise<OperationConfirmation> {
     const bus = await this.prisma.bus.findFirst({
       where: { busCompanyId, vehicleno },
-    })
-
-    if (bus?.operation) {
-      throw new ConflictException(
-        'The bus is currently operating, please select another bus',
-      )
-    }
-
-    await this.changeOperation(bus.id, bus.vehicleno)
-    return { busId: bus.id }
-  }
-
-  // 4. 버스 id -> 노선번호 -> 노선 아이디 -> 노선 경로
-  async findRouteByBusIdAndCityCode(busId: number, cityCode: string) {
-    const bus = await this.prisma.bus.findFirst({
-      where: { id: busId },
+      select: { operation: true, id: true },
     })
 
     if (!bus) {
       throw new NotFoundException('Bus not found')
     }
 
-    const routes = await this.nodeApiService.getRouteDetails(
-      bus.routnm,
-      cityCode,
-    )
-    return routes
+    if (bus.operation) {
+      throw new ConflictException(
+        'The bus is currently operating, please select another bus',
+      )
+    }
+
+    return { busId: bus.id }
+  }
+
+  // 4. 버스 id -> 노선번호 -> 노선 아이디 -> 노선 경로
+  async findRouteByBusIdAndCityCode(
+    busId: number,
+    cityCode: string,
+  ): Promise<any> {
+    const bus = await this.prisma.bus.findFirst({
+      where: { id: busId },
+      select: { routnm: true },
+    })
+
+    if (!bus) {
+      throw new NotFoundException('Bus not found')
+    }
+
+    return this.nodeApiService.getRouteDetails(bus.routnm, cityCode)
   }
 
   // 버스 운행 상태 변경
@@ -146,7 +137,6 @@ export class DriverService {
       const bus = await this.prisma.bus.findUnique({
         where: { id: busId },
       })
-      console.log('Bus ID:', busId)
       if (!bus) {
         throw new NotFoundException('Bus information is currently unavailable')
       }
@@ -157,9 +147,8 @@ export class DriverService {
           bus.routnm,
           bus.vehicleno,
         )
-      console.log('Bus Location Info:', busLocationInfo)
 
-      if (!busLocationInfo || busLocationInfo.length === 0) {
+      if (!busLocationInfo) {
         throw new NotFoundException(
           'No location information available for the bus',
         )
@@ -168,10 +157,11 @@ export class DriverService {
         bus.routnm,
         '21',
       )
+
       // 초기 정류장 정보를 설정
       if (this.stationInfo === null) {
         this.stationInfo = {
-          currentStationId: routeDetail.stops[0].station,
+          currentStationId: routeDetail.stops[0].stationId,
           futureStationId: null,
         }
       }
@@ -183,7 +173,6 @@ export class DriverService {
         routeDetail,
         this.stationInfo,
       )
-      console.log('Updated Station Info:', this.stationInfo) // 여기까지 해결
 
       // 미래 탑승자 수 파악
       const futurePassengers = await this.countFuturePassengers(
@@ -191,7 +180,6 @@ export class DriverService {
         this.stationInfo.currentStationId!,
         bus.id,
       )
-      console.log('Future Passengers:', futurePassengers)
 
       // 반환할 버스 정보 구성
       const busInfo: BoardingInfo = {
@@ -200,7 +188,6 @@ export class DriverService {
         CurrentPassengers: this.passengers,
         futurePassengers: futurePassengers,
       }
-      console.log('Final Bus Info:', busInfo)
 
       return busInfo
     } catch (error) {
@@ -225,9 +212,6 @@ export class DriverService {
     currentStationId: string | null
     futureStationId: string | null
   }> {
-    console.log('checkStation - stopFlag:', stopFlag)
-    console.log('checkStation - stId:', stId)
-
     if (stopFlag === '1') {
       // 현재 정류장에 도착했을 경우
       station.currentStationId = stId
@@ -243,19 +227,11 @@ export class DriverService {
       console.warn(`Unexpected stopFlag value: ${stopFlag}`)
       // 예상치 못한 값에 대해 별도의 처리 또는 로깅을 수행
     }
-
-    console.log('checkStation - stationInfo:', station)
     return station
   }
 
   // 다음 정류장 ID를 가져오는 메서드
-  private getNextStationId(
-    currentStationId: string,
-    routeDetail,
-  ): string | null {
-    console.log('getNextStationIdC', currentStationId)
-    console.log('getNextStationIdR', routeDetail)
-
+  private getNextStationId(currentStationId: string, routeDetail): string {
     // currentStationId와 일치하는 정류장의 인덱스를 찾음
     const currentIndex = routeDetail.stops.findIndex(
       (stop) => stop.station === currentStationId,
@@ -264,16 +240,12 @@ export class DriverService {
     if (currentIndex !== -1 && currentIndex < routeDetail.stops.length - 1) {
       // 다음 정류장의 station 값을 반환
       const nextStation = routeDetail.stops[currentIndex + 1].station
-      console.log('Next Station:', nextStation)
+
       return nextStation
     } else if (currentIndex === routeDetail.stops.length - 1) {
-      // 현재 정류장이 마지막 정류장일 경우
-      console.log('This is the last station in the route.')
-      return null
+      throw new Error('This is the last station in the route.')
     } else {
-      // currentStationId에 해당하는 정류장을 찾지 못한 경우
-      console.log(`Station with ID ${currentStationId} not found.`)
-      return null
+      throw new Error(`Station with ID ${currentStationId} not found.`)
     }
   }
   // 특정 버스의 현재 정류장 이후의 승객 수 계산
@@ -281,7 +253,8 @@ export class DriverService {
     passengers: Passenger[],
     currentStation: string,
     busId: number,
-  ): Promise<any> {
+  ) {
+    // 올바른 반환 타입 지정
     const bus = await this.prisma.bus.findUnique({
       where: { id: busId },
       include: { busCompany: true },
@@ -290,15 +263,13 @@ export class DriverService {
     if (!bus) throw new Error('Bus not found')
     if (!bus.busCompany) throw new Error('Bus company information is missing')
 
-    const stopsInfo = await this.nodeApiService.getRouteDetails(
+    const busStopInfo = await this.nodeApiService.getRouteDetails(
       bus.routnm,
       bus.busCompany.cityCode,
     )
-    //console.log(stopsInfo)
-    const stops = stopsInfo.stops
-    console.log('정류장 이름', stops[0].station)
+    const stops = busStopInfo.stops
     const currentStationIndex = stops.findIndex(
-      (stop) => stop.station === currentStation,
+      (stop) => stop.stationId === currentStation,
     )
 
     if (currentStationIndex === -1) {
@@ -308,14 +279,11 @@ export class DriverService {
     }
 
     const futureStops = stops.slice(currentStationIndex + 1)
-    const passengerCounts = futureStops
-      .map((stop) => ({
-        stop,
-        count: passengers.filter((p) => p.startStation === stop).length,
-      }))
-      .filter((stopCount) => stopCount.count > 0)
-
-    return passengerCounts
+    return futureStops.map((stop) => ({
+      // 반환 구조 일치
+      station: stop.nodenm,
+      count: passengers.filter((p) => p.startStation === stop.nodenm).length,
+    }))
   }
 
   // 버스 위치 정보의 변경을 모니터링하는 함수
