@@ -104,7 +104,7 @@ export class NodeApiService {
     // resultType=json으로 변경은 추후 진행 예정
     try {
       const url = `${this.getSeoulIdByRoute}&strSrch=${routeNo}`
-
+      console.log('urlId', url)
       const response = await axios.get(url)
 
       const parsedData = await xml2js.parseStringPromise(response.data)
@@ -125,11 +125,10 @@ export class NodeApiService {
   async getSeoulRouteById(routeId: string): Promise<RouteDetail[]> {
     try {
       const url = `${this.getSeoulRoute}&busRouteId=${routeId}`
-
+      console.log('urlRoute', url)
       const response = await axios.get(url)
 
       const parsedData = await xml2js.parseStringPromise(response.data)
-
       const seoulRoute: RouteDetail[] =
         parsedData.ServiceResult.msgBody[0].itemList.map((item) => ({
           nodenm: item.stationNm[0],
@@ -151,7 +150,6 @@ export class NodeApiService {
       if (cityCode === '21') {
         const routeId = await this.getRouteIdSeoul(routeNo)
         const stopByRoute = await this.getSeoulRouteById(routeId)
-
         return { routeNo: routeNo, stops: stopByRoute }
       }
 

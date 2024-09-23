@@ -6,19 +6,16 @@ import {
   HttpStatus,
 } from '@nestjs/common'
 import { PrismaClient } from '@prisma/client'
-import { NodeApiService } from '../api/node-api/node-api.service'
 import { Passenger } from './Dto/passengers'
 import { BoardingInfo } from './Dto/boardingInfo'
 import { BusCompanyInfo } from './Dto/busCompanyInfo'
 import { BusInfo } from './Dto/busInfo'
 import { OperationConfirmation } from './Dto/operationConfirmation'
-
-// Interfaces 정의
+import { NodeApiService } from 'src/api/node-api/node-api.service'
+import { Route } from 'src/api/node-api/Dto/route'
 
 @Injectable()
 export class DriverService {
-  private prisma: PrismaClient
-  private nodeApiService: NodeApiService
   private passengersCallback: Array<(passengers: Passenger[]) => void> = []
   private passengers: Passenger[] = []
   private previousStationId: string | null = null
@@ -26,9 +23,11 @@ export class DriverService {
     currentStationId: string | null
     futureStationId: string | null
   } = null
-  constructor() {
-    this.prisma = new PrismaClient()
-  }
+
+  constructor(
+    private readonly prisma: PrismaClient, // DI로 PrismaClient 주입
+    private readonly nodeApiService: NodeApiService, // DI로 NodeApiService 주입
+  ) {}
 
   // 1. 버스회사 코드 입력 -> 회사id와 도시코드를 반환
   async findBusCompanyIdAndCityCode(code: string): Promise<BusCompanyInfo> {
@@ -66,8 +65,6 @@ export class DriverService {
       vehicleno: bus.vehicleno,
       routnm: bus.routnm,
       cityCode: bus.busCompany.cityCode,
-      startnodenm: '', // Placeholder
-      endnodenm: '', // Placeholder
     }))
   }
 
@@ -98,7 +95,7 @@ export class DriverService {
   async findRouteByBusIdAndCityCode(
     busId: number,
     cityCode: string,
-  ): Promise<any> {
+  ): Promise<Route> {
     const bus = await this.prisma.bus.findFirst({
       where: { id: busId },
       select: { routnm: true },
@@ -108,7 +105,12 @@ export class DriverService {
       throw new NotFoundException('Bus not found')
     }
 
-    return this.nodeApiService.getRouteDetails(bus.routnm, cityCode)
+    const routes: Route = await this.nodeApiService.getRouteDetails(
+      bus.routnm,
+      cityCode,
+    )
+
+    return routes
   }
 
   // 버스 운행 상태 변경
