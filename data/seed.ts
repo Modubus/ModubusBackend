@@ -43,8 +43,8 @@ async function main() {
       {
         busCompanyId: yuseong!.id,
         operation: true,
-        vehicleno: '서울70사7781',
-        routnm: '7016',
+        vehicleno: '서울74사5366',
+        routnm: '140',
       },
       {
         busCompanyId: yuseong!.id,
