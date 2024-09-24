@@ -317,31 +317,37 @@ export class DriverService {
   }
 
   // DB에서 최신 승객 데이터를 가져오기
-  async getPassengers(userId: number) {
-    const passengers = await this.prisma.boarding.findMany({
-      where: { userId }, // userId로 필터링
-      include: {
-        user: true, // 유저 정보를 포함시켜 Passenger 객체를 완성
-      },
+async getPassengers(userId: number) {
+  const passengers = await this.prisma.boarding.findMany({
+    where: { userId }, // userId로 필터링
+    include: {
+      user: true, // 유저 정보를 포함시켜 Passenger 객체를 완성
+    },
+  });
+
+  // 각 승객의 요구사항을 user 테이블에서 개별적으로 가져옴
+  const passengersWithRequires = await Promise.all(
+    passengers.map(async (boarding) => {
+      const userRequires = await this.prisma.user.findUnique({
+        where: { id: boarding.userId }, // boarding의 userId로 유저를 찾음
+        include: {
+          requires: true, // 유저의 요구사항을 포함시킴
+        },
+      });
+
+      const requires = userRequires?.requires.map((req) => req.require) || []; // 요구사항 배열 추출
+
+      return {
+        userId: boarding.userId,
+        startStation: boarding.startStation,
+        endStation: boarding.endStation,
+        requires: requires, // 각 승객의 요구사항
+      };
     })
+  );
 
-    // user 테이블에서 요구사항(requires) 정보를 가져옴
-    const userRequires = await this.prisma.user.findUnique({
-      where: { id: userId }, // userId로 유저를 찾음
-      include: {
-        requires: true, // 유저의 요구사항을 포함시킴
-      },
-    })
-
-    const requires = userRequires?.requires.map((req) => req.require) || [] // 요구사항 배열 추출
-
-    this.passengers = passengers.map((boarding) => ({
-      userId: boarding.userId,
-      startStation: boarding.startStation,
-      endStation: boarding.endStation,
-      requires: requires,
-    }))
-  }
+  this.passengers = passengersWithRequires;
+}
 
   // 탑승자 변경 사항 알림 등록
   dataToPassengerUpdates(callback: (passengers: Passenger[]) => void) {
