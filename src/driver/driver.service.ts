@@ -325,7 +325,7 @@ async getPassengers(userId: number) {
     },
   });
 
-  // 각 승객의 요구사항을 user 테이블에서 개별적으로 가져옴
+  // 각 승객의 요구사항을 개별적으로 가져옴
   const passengersWithRequires = await Promise.all(
     passengers.map(async (boarding) => {
       const userRequires = await this.prisma.user.findUnique({
@@ -337,16 +337,20 @@ async getPassengers(userId: number) {
 
       const requires = userRequires?.requires.map((req) => req.require) || []; // 요구사항 배열 추출
 
-      return {
+      // 새로운 승객 정보 생성
+      const newPassenger = {
         userId: boarding.userId,
         startStation: boarding.startStation,
         endStation: boarding.endStation,
         requires: requires, // 각 승객의 요구사항
       };
+
+      // 생성된 승객 정보를 push
+      this.passengers.push(newPassenger);
+
+      return newPassenger;
     })
   );
-
-  this.passengers = passengersWithRequires;
 }
 
   // 탑승자 변경 사항 알림 등록
