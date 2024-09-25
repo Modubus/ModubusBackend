@@ -177,18 +177,17 @@ export class DriverService {
       )
 
       // 미래 탑승자 수 파악
-      const futurePassengers = await this.countFuturePassengers(
-        this.passengers,
+      const upcomingPassengers = await this.countFuturePassengers(
         this.stationInfo.currentStationId!,
         bus.id,
       )
 
+      // DB에 사용자 탑승 요청시 전부 저장해두고 출발예정지와 도착예정지 전 정류장에서 polling예정
       // 반환할 버스 정보 구성
       const busInfo: BoardingInfo = {
-        requires: ['이건 요구사항 어떻게 받는지 모름'], // 추후 수정 필요
-        Station: this.stationInfo, // 나중에 정류소 명으로 바꿀 예정
-        CurrentPassengers: this.passengers,
-        futurePassengers: futurePassengers,
+        station: this.stationInfo, // 나중에 정류소 명으로 바꿀 예정
+        passengers: this.passengers,
+        upcomingPassengers: upcomingPassengers,
       }
 
       return busInfo
@@ -251,40 +250,27 @@ export class DriverService {
     }
   }
   // 특정 버스의 현재 정류장 이후의 승객 수 계산
-  async countFuturePassengers(
-    passengers: Passenger[],
-    currentStation: string,
-    busId: number,
-  ) {
+  async countFuturePassengers(currentStationId: string, busId: number) {
     // 올바른 반환 타입 지정
     const bus = await this.prisma.bus.findUnique({
       where: { id: busId },
       include: { busCompany: true },
     })
-
-    if (!bus) throw new Error('Bus not found')
-    if (!bus.busCompany) throw new Error('Bus company information is missing')
-
-    const busStopInfo = await this.nodeApiService.getRouteDetails(
+    const busRouteInfo = await this.nodeApiService.getRouteDetails(
       bus.routnm,
       bus.busCompany.cityCode,
     )
-    const stops = busStopInfo.stops
+    const stops = busRouteInfo.stops
     const currentStationIndex = stops.findIndex(
-      (stop) => stop.stationId === currentStation,
+      (stop) => stop.stationId === currentStationId,
     )
-
-    if (currentStationIndex === -1) {
-      throw new Error(
-        `Current station ${currentStation} not found in the route.`,
-      )
-    }
-
+    // 앞으로 가야될 정류장 slice로 데이터 분리
     const futureStops = stops.slice(currentStationIndex + 1)
     return futureStops.map((stop) => ({
       // 반환 구조 일치
       station: stop.nodenm,
-      count: passengers.filter((p) => p.startStation === stop.nodenm).length,
+      count: this.passengers.filter((p) => p.startStation === stop.nodenm)
+        .length,
     }))
   }
 
@@ -322,7 +308,8 @@ export class DriverService {
 
   // 탑승자 변경 사항 알림
   async notifyToDriverUpdates(userId: number) {
-    await this.getPassengersFromDB(userId)
+    // 출발지 예정지 전 정류장, 목적지 도착 전 정류장
+    await this.getPassengers(userId)
 
     this.passengersCallback.forEach((callback) => {
       callback(this.passengers)
@@ -330,20 +317,41 @@ export class DriverService {
   }
 
   // DB에서 최신 승객 데이터를 가져오기
-  async getPassengersFromDB(userId: number) {
-    const passengers = await this.prisma.boarding.findMany({
-      where: { userId },
-      include: {
-        user: true, // 유저 정보를 포함시켜 Passenger 객체를 완성
-      },
-    })
+async getPassengers(userId: number) {
+  const passengers = await this.prisma.boarding.findMany({
+    where: { userId }, // userId로 필터링
+    include: {
+      user: true, // 유저 정보를 포함시켜 Passenger 객체를 완성
+    },
+  });
 
-    this.passengers = passengers.map((boarding) => ({
-      userId: boarding.userId,
-      startStation: boarding.startStation,
-      endStation: boarding.endStation,
-    }))
-  }
+  // 각 승객의 요구사항을 개별적으로 가져옴
+  const passengersWithRequires = await Promise.all(
+    passengers.map(async (boarding) => {
+      const userRequires = await this.prisma.user.findUnique({
+        where: { id: boarding.userId }, // boarding의 userId로 유저를 찾음
+        include: {
+          requires: true, // 유저의 요구사항을 포함시킴
+        },
+      });
+
+      const requires = userRequires?.requires.map((req) => req.require) || []; // 요구사항 배열 추출
+
+      // 새로운 승객 정보 생성
+      const newPassenger = {
+        userId: boarding.userId,
+        startStation: boarding.startStation,
+        endStation: boarding.endStation,
+        requires: requires, // 각 승객의 요구사항
+      };
+
+      // 생성된 승객 정보를 push
+      this.passengers.push(newPassenger);
+
+      return newPassenger;
+    })
+  );
+}
 
   // 탑승자 변경 사항 알림 등록
   dataToPassengerUpdates(callback: (passengers: Passenger[]) => void) {
