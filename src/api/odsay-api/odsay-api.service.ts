@@ -65,7 +65,17 @@ export class OdsayApiService {
   // Filter out non-bus subPaths and limit to 4 total buses (main + 3 transfers)
   private getBusSubPaths(path: any): any[] {
     return path.subPath
-      .filter((subPath: any) => subPath.trafficType === 2) // Filter for buses
+      .filter(
+        (subPath: any) =>
+          subPath.trafficType === 2 &&
+          (subPath.lane[0].type === 1 || // 일반
+            2 || // 좌석
+            3 || // 마을버스
+            11 || // 간선
+            12 || // 지선
+            13 || // 순환
+            15), // 급행
+      ) // Filter for buses
       .slice(0, 4) // Maximum 4 buses (including the initial one)
   }
 
