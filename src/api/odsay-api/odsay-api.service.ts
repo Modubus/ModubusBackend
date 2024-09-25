@@ -17,7 +17,7 @@ export class OdsayApiService {
     endX: number,
     endY: number,
   ): Promise<BusRouteInfo[]> {
-    const url = `https://api.odsay.com/v1/api/searchPubTransPathT?SX=${startX}&SY=${startY}&EX=${endX}&EY=${endY}&OPT=0&SearchType=0&SearchPathType=0&apiKey=${this.apiKey}`
+    const url = `https://api.odsay.com/v1/api/searchPubTransPathT?SX=${startX}&SY=${startY}&EX=${endX}&EY=${endY}&OPT=0&SearchType=0&SearchPathType=2&apiKey=${this.apiKey}`
     try {
       const response = await axios.get(url)
       const data = response.data
