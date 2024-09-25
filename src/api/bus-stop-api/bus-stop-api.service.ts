@@ -11,24 +11,23 @@ export class BusStopApiService {
 
   // Fetches bus stations near a given GPS location
   async busToStation(
-    // getNearbyBusStations 서울 버전
     gpsLati: number,
     gpsLong: number,
-  ): Promise<StationIdInfo> {
-    const url = `http://ws.bus.go.kr/api/rest/stationinfo/getStationByPos?ServiceKey=IfJN7A3cBBPttYf%2FFcFWC8pNDT3mi3SRSsDJmyAXQAUOlqvkQhP4ggZkHzhacIhEEJzcswWo8fraVeUBAOxQng%3D%3D&tmX=${gpsLong}&tmY=${gpsLati}&radius=100&resultType=json`
+  ): Promise<StationIdInfo[]> {
+    const url = `http://ws.bus.go.kr/api/rest/stationinfo/getStationByPos?ServiceKey=IfJN7A3cBBPttYf%2FFcFWC8pNDT3mi3SRSsDJmyAXQAUOlqvkQhP4ggZkHzhacIhEEJzcswWo8fraVeUBAOxQng%3D%3D&tmX=${gpsLong}&tmY=${gpsLati}&radius=400&resultType=json`
 
     try {
       const response = await axios.get(url)
       const data = response.data
 
-      // 첫 번째 항목이 있는지 확인하고, 있으면 해당 값을 반환
-      const stationsInfo: StationIdInfo = data.msgBody.itemList.map(
+      const stationsInfo: StationIdInfo[] = data.msgBody.itemList.map(
         (item: any) => ({
-          arsId: item.arsId, // 각 항목의 arsId
-          stationNm: item.stationNm, // 각 항목의 stationNm
+          arsId: item.arsId,
+          stationNm: item.stationNm,
           stationId: item.stationId,
         }),
       )
+      console.log(stationsInfo)
       return stationsInfo
     } catch (error) {
       console.error('Error fetching bus station info:', error)
