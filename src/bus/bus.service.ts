@@ -75,7 +75,6 @@ export class BusService {
     const nodeInfo = await this.locationSearchApiService.performSearch(
       startStation,
     )
-
     const stationInfo = await this.busStopApiService.busToStation(
       nodeInfo.lat,
       nodeInfo.lon,
@@ -83,32 +82,50 @@ export class BusService {
 
     let busInfo2 = null
 
-    // stationInfo 배열을 순회하면서 각 정류장에 대한 버스 정보를 확인
-    for (let i = 0; i < Object.keys(stationInfo).length; i++) {
-      const arsId = stationInfo[i].arsId // arsId로 해당 정류장의 ID를 얻음
+    // stationInfo 배열에 있는 모든 정류장을 병렬로 확인
+    await Promise.all(
+      stationInfo.map(async (station) => {
+        if (busInfo2) return // 이미 찾았으면 나머지 요청은 중단
 
-      const busInfo = await this.busStopApiService.busArrivalInfo(arsId)
+        try {
+          const busInfo = await this.busStopApiService.busArrivalInfo(
+            station.arsId,
+          )
 
-      // 버스 번호가 routeno와 일치하는 버스 정보를 필터링
-      const busInfo1 = busInfo.filter((bus) => bus.rtNm === routeno)
+          // busInfo가 null인지 확인
+          if (!busInfo) {
+            console.error(
+              `Failed to fetch bus info for station: ${station.stationNm} (${station.arsId})`,
+            )
+            return
+          }
 
-      // 일치하는 버스가 있으면 처리
-      if (busInfo1.length > 0) {
-        const ord = busInfo1[0].staOrd
-        const routeId = busInfo1[0].busRouteId
-        const stId = stationInfo[i].stationId
+          // 라우트 번호와 일치하는 버스를 필터링
+          const matchingBus = busInfo.filter(
+            (bus) =>
+              bus.rtNm.trim().toLowerCase() === routeno.trim().toLowerCase(),
+          )
 
-        // 해당 ord, nodeId, stId로 버스 정보 조회
-        busInfo2 = await this.busStopApiService.SeoulBoardBusInfo(
-          parseInt(ord),
-          stId,
-          routeId,
-        )
-        break // 일치하는 버스를 찾았으면 더 이상 순회를 하지 않음
-      }
-    }
+          console.log('matchingBus', matchingBus)
 
-    // 만약 일치하는 버스 정보가 없으면 에러 처리
+          if (matchingBus.length > 0) {
+            const ord = matchingBus[0].staOrd
+            const routeId = matchingBus[0].busRouteId
+            const stId = station.stationId
+
+            busInfo2 = await this.busStopApiService.SeoulBoardBusInfo(
+              parseInt(ord),
+              stId,
+              routeId,
+            )
+            console.log('busInfo2', busInfo2)
+          }
+        } catch (error) {
+          console.error(`Error fetching bus arrival info: ${error.message}`)
+        }
+      }),
+    )
+
     if (!busInfo2) {
       throw new Error('No matching bus found for the provided route number')
     }
