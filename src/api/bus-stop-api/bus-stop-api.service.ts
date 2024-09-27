@@ -27,6 +27,7 @@ export class BusStopApiService {
           stationId: item.stationId,
         }),
       )
+      console.log(stationsInfo)
       return stationsInfo
     } catch (error) {
       console.error('Error fetching bus station info:', error)
