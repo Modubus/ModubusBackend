@@ -149,17 +149,16 @@ export class DriverService {
           bus.routnm,
           bus.vehicleno,
         )
-
       if (!busLocationInfo) {
         throw new NotFoundException(
           'No location information available for the bus',
         )
       }
+
       const routeDetail = await this.nodeApiService.getRouteDetails(
         bus.routnm,
         '21',
       )
-
       // 초기 정류장 정보를 설정
       if (this.stationInfo === null) {
         this.stationInfo = {
@@ -167,7 +166,6 @@ export class DriverService {
           futureStationId: null,
         }
       }
-
       // 현재 위치와 다음 정류장 정보를 업데이트
       this.stationInfo = await this.checkStation(
         busLocationInfo[0].stopFlag,
@@ -181,18 +179,15 @@ export class DriverService {
         this.stationInfo.currentStationId!,
         bus.id,
       )
-
-      // DB에 사용자 탑승 요청시 전부 저장해두고 출발예정지와 도착예정지 전 정류장에서 polling예정
       // 반환할 버스 정보 구성
       const busInfo: BoardingInfo = {
-        station: this.stationInfo, // 나중에 정류소 명으로 바꿀 예정
+        station: this.stationInfo,
         passengers: this.passengers,
         upcomingPassengers: upcomingPassengers,
       }
 
       return busInfo
     } catch (error) {
-      console.error('Error in getBusInfoToDriver:', error.message)
       throw new HttpException(
         'Internal Server Error',
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -224,54 +219,24 @@ export class DriverService {
         station.currentStationId,
         routeDetail,
       )
-    } else {
-      console.warn(`Unexpected stopFlag value: ${stopFlag}`)
-      // 예상치 못한 값에 대해 별도의 처리 또는 로깅을 수행
     }
+
     return station
   }
 
   // 다음 정류장 ID를 가져오는 메서드
   private getNextStationId(currentStationId: string, routeDetail): string {
-    // currentStationId와 일치하는 정류장의 인덱스를 찾음
     const currentIndex = routeDetail.stops.findIndex(
-      (stop) => stop.station === currentStationId,
+      (stop) => stop.stationId === currentStationId,
     )
-
     if (currentIndex !== -1 && currentIndex < routeDetail.stops.length - 1) {
-      // 다음 정류장의 station 값을 반환
-      const nextStation = routeDetail.stops[currentIndex + 1].station
-
+      const nextStation = routeDetail.stops[currentIndex + 1].stationId
       return nextStation
     } else if (currentIndex === routeDetail.stops.length - 1) {
       throw new Error('This is the last station in the route.')
     } else {
       throw new Error(`Station with ID ${currentStationId} not found.`)
     }
-  }
-  // 특정 버스의 현재 정류장 이후의 승객 수 계산
-  async countFuturePassengers(currentStationId: string, busId: number) {
-    // 올바른 반환 타입 지정
-    const bus = await this.prisma.bus.findUnique({
-      where: { id: busId },
-      include: { busCompany: true },
-    })
-    const busRouteInfo = await this.nodeApiService.getRouteDetails(
-      bus.routnm,
-      bus.busCompany.cityCode,
-    )
-    const stops = busRouteInfo.stops
-    const currentStationIndex = stops.findIndex(
-      (stop) => stop.stationId === currentStationId,
-    )
-    // 앞으로 가야될 정류장 slice로 데이터 분리
-    const futureStops = stops.slice(currentStationIndex + 1)
-    return futureStops.map((stop) => ({
-      // 반환 구조 일치
-      station: stop.nodenm,
-      count: this.passengers.filter((p) => p.startStation === stop.nodenm)
-        .length,
-    }))
   }
 
   // 버스 위치 정보의 변경을 모니터링하는 함수
@@ -281,11 +246,11 @@ export class DriverService {
   ): void {
     // 초기 실행 시 이전 정류장 ID를 설정
     if (this.previousStationId === null) {
-      this.previousStationId = busInfo.Station.currentStationId
+      this.previousStationId = busInfo.station.currentStationId
     }
 
     const intervalId = setInterval(async () => {
-      const currentStationId = busInfo.Station.currentStationId
+      const currentStationId = busInfo.station.currentStationId
 
       // 이전 정류장 값과 현재 정류장 값을 비교
       if (this.hasLocationChanged(this.previousStationId, currentStationId)) {
@@ -295,7 +260,7 @@ export class DriverService {
         // 이전 정류장을 현재 정류장으로 업데이트
         this.previousStationId = currentStationId
       }
-    }, 5000) // 1분마다 polling
+    }, 5000) // 5초마다 polling
   }
 
   // 위치 변경 여부 확인 로직
@@ -304,6 +269,33 @@ export class DriverService {
     currentStationId: string | null,
   ): boolean {
     return previousStationId !== currentStationId
+  }
+
+  // 특정 버스의 현재 정류장 이후의 승객 수 계산
+  async countFuturePassengers(currentStationId: string, busId: number) {
+    // 버스 정보 조회
+    const bus = await this.prisma.bus.findUnique({
+      where: { id: busId },
+      include: { busCompany: true },
+    })
+
+    const busRouteInfo = await this.nodeApiService.getRouteDetails(
+      bus.routnm,
+      bus.busCompany.cityCode,
+    )
+    const stops = busRouteInfo.stops
+    const currentStationIndex = stops.findIndex(
+      (stop) => stop.stationId === currentStationId,
+    )
+
+    // 앞으로 갈 정류장 분리
+    const futureStops = stops.slice(currentStationIndex + 1)
+    return futureStops.map((stop) => {
+      return {
+        station: stop.nodenm,
+        stationId: stop.stationId,
+      }
+    })
   }
 
   // 탑승자 변경 사항 알림
@@ -317,44 +309,54 @@ export class DriverService {
   }
 
   // DB에서 최신 승객 데이터를 가져오기
-async getPassengers(userId: number) {
-  const passengers = await this.prisma.boarding.findMany({
-    where: { userId }, // userId로 필터링
-    include: {
-      user: true, // 유저 정보를 포함시켜 Passenger 객체를 완성
-    },
-  });
-
-  // 각 승객의 요구사항을 개별적으로 가져옴
-  const passengersWithRequires = await Promise.all(
-    passengers.map(async (boarding) => {
-      const userRequires = await this.prisma.user.findUnique({
-        where: { id: boarding.userId }, // boarding의 userId로 유저를 찾음
-        include: {
-          requires: true, // 유저의 요구사항을 포함시킴
-        },
-      });
-
-      const requires = userRequires?.requires.map((req) => req.require) || []; // 요구사항 배열 추출
-
-      // 새로운 승객 정보 생성
-      const newPassenger = {
-        userId: boarding.userId,
-        startStation: boarding.startStation,
-        endStation: boarding.endStation,
-        requires: requires, // 각 승객의 요구사항
-      };
-
-      // 생성된 승객 정보를 push
-      this.passengers.push(newPassenger);
-
-      return newPassenger;
+  async getPassengers(userId: number) {
+    // Boarding 테이블에서 userId로 데이터를 가져옴
+    const passengers = await this.prisma.boarding.findMany({
+      where: { userId },
+      include: { user: true },
     })
-  );
-}
+
+    // User 테이블에서 requires 데이터를 가져옴
+    const usersRequires = await this.prisma.user.findMany({
+      where: {
+        id: {
+          in: passengers.map((p) => p.userId), // Boarding 테이블에서 가져온 userId 리스트
+        },
+      },
+      include: {
+        requires: true, // requires 필드를 포함해서 가져옴
+      },
+    })
+
+    // 기존의 승객 정보 유지
+    const newPassengers = passengers.map((p) => {
+      const user = usersRequires.find((u) => u.id === p.userId) // 해당 userId에 맞는 requires 데이터 찾기
+      return {
+        userId: p.userId,
+        startStation: p.startStation,
+        endStation: p.endStation,
+        requires: user?.requires.map((req) => req.require) || [], // requires 데이터를 string[] 형식으로 변환
+      }
+    })
+
+    // 기존 승객 정보와 합쳐서 중복 제거
+    this.passengers = [
+      ...this.passengers.filter(
+        (existing) =>
+          !newPassengers.some((newP) => newP.userId === existing.userId),
+      ),
+      ...newPassengers,
+    ]
+  }
 
   // 탑승자 변경 사항 알림 등록
   dataToPassengerUpdates(callback: (passengers: Passenger[]) => void) {
     this.passengersCallback.push(callback)
+  }
+
+  removePassengerFromList(userId: number) {
+    this.passengers = this.passengers.filter(
+      (passenger) => passenger.userId !== userId,
+    )
   }
 }

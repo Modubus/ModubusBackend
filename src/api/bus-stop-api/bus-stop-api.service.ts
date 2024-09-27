@@ -14,7 +14,7 @@ export class BusStopApiService {
     gpsLati: number,
     gpsLong: number,
   ): Promise<StationIdInfo[]> {
-    const url = `http://ws.bus.go.kr/api/rest/stationinfo/getStationByPos?ServiceKey=IfJN7A3cBBPttYf%2FFcFWC8pNDT3mi3SRSsDJmyAXQAUOlqvkQhP4ggZkHzhacIhEEJzcswWo8fraVeUBAOxQng%3D%3D&tmX=${gpsLong}&tmY=${gpsLati}&radius=400&resultType=json`
+    const url = `http://ws.bus.go.kr/api/rest/stationinfo/getStationByPos?ServiceKey=IfJN7A3cBBPttYf%2FFcFWC8pNDT3mi3SRSsDJmyAXQAUOlqvkQhP4ggZkHzhacIhEEJzcswWo8fraVeUBAOxQng%3D%3D&tmX=${gpsLong}&tmY=${gpsLati}&radius=500&resultType=json`
 
     try {
       const response = await axios.get(url)

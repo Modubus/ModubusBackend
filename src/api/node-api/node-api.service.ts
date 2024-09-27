@@ -41,7 +41,6 @@ export class NodeApiService {
     cityCode: string,
   ): Promise<RouteItem[]> {
     const url = `${this.nodeIdByroutnm}&pageNo=1&numOfRows=10&_type=json&cityCode=${cityCode}&routeNo=${routeNo}`
-    console.log(url)
     try {
       const response = await axios.get(url)
       const items = response.data.response?.body?.items?.item
@@ -111,7 +110,6 @@ export class NodeApiService {
 
       const routeIds =
         parsedData.ServiceResult.msgBody[0].itemList[0].busRouteId[0]
-
       return routeIds.toString()
     } catch (error) {
       console.error('Error fetching Seoul route ID:', error)
@@ -263,16 +261,25 @@ export class NodeApiService {
       const url = `${this.getBusPosByRtid}&busRouteId=${routeId}&resultType=json`
       const response = await axios.get(url)
       const items = response.data.msgBody.itemList
+
+      // checkInfo 배열 로그 추가
       const checkInfo = items.map((item) => ({
         vehId: item.vehId,
         vehicleno: item.plainNo,
       }))
+
       const foundBus = checkInfo.find((item) => item.vehicleno === vehicleno)
+
+      if (!foundBus) {
+        console.error(`No vehicle found with vehicle number: ${vehicleno}`)
+        throw new Error(`Vehicle with number ${vehicleno} not found.`)
+      }
+
       const vehicleId = foundBus.vehId.toString()
 
       return vehicleId
     } catch (error) {
-      console.log(error)
+      console.log('Error fetching vehicle ID:', error)
       throw new HttpException(
         'Failed to fetch vehicleNo',
         HttpStatus.INTERNAL_SERVER_ERROR,

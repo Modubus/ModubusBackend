@@ -174,20 +174,27 @@ export class BusService {
   }
 
   async cancelBus(userId: number) {
+    // Step 1: Boarding 테이블에서 해당 userId로 데이터를 찾음
     const cancelUser = await this.prisma.boarding.findFirst({
       where: { userId: userId },
     })
 
+    // Step 2: 해당 유저의 boarding 기록이 없을 때 예외 처리
     if (!cancelUser) {
       throw new NotFoundException(
         `No boarding record found for user with ID ${userId}`,
       )
     }
 
+    // Step 3: Boarding 테이블에서 해당 기록 삭제
     await this.prisma.boarding.delete({
       where: { id: cancelUser.id },
     })
 
+    // Step 4: DriverService에서 해당 유저를 passengers 리스트에서 삭제
+    await this.driverService.removePassengerFromList(userId)
+
+    // Step 5: 승객 정보 업데이트 알림
     await this.driverService.notifyToDriverUpdates(userId)
 
     return { message: 'Boarding record changed.' }
