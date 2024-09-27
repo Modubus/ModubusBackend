@@ -8,7 +8,7 @@ export interface BoardingInfo {
 
 type numPassengerByStation = {
   station: string
-  count: number
+  stationId: string
 }
 
 type station = {

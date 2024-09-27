@@ -15,8 +15,8 @@ async function main() {
   const companies = [
     { name: 'Yuseong', code: 'Yuseong', cityCode: '21' },
     { name: 'Sinchon', code: 'Sinchon', cityCode: '21' },
-    { name: 'Shinil', code: 'Shinil', cityCode: '31200' },
-    { name: 'Paju', code: 'Paju', cityCode: '31200' },
+    { name: 'Shinil', code: 'Shinil', cityCode: '21' },
+    { name: 'Paju', code: 'Paju', cityCode: '21' },
   ]
 
   // 회사 코드 생성 및 데이터 삽입
@@ -67,26 +67,26 @@ async function main() {
       {
         busCompanyId: shinil!.id,
         operation: true,
-        vehicleno: '경기76자1629',
-        routnm: '92',
+        vehicleno: '서울74사3891',
+        routnm: '140',
       },
       {
         busCompanyId: shinil!.id,
         operation: true,
-        vehicleno: '경기76자1853',
-        routnm: '9710',
+        vehicleno: '서울71사1287',
+        routnm: '140',
       },
       {
         busCompanyId: paju!.id,
         operation: true,
-        vehicleno: '경기76자2060',
-        routnm: 'G7625',
+        vehicleno: '서울74사3097',
+        routnm: '140',
       },
       {
         busCompanyId: paju!.id,
         operation: true,
-        vehicleno: '경기76자1983',
-        routnm: 'G7426',
+        vehicleno: '서울71사1861',
+        routnm: '140',
       },
     ],
   })
