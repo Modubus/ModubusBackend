@@ -14,7 +14,7 @@ export class BusStopApiService {
     gpsLati: number,
     gpsLong: number,
   ): Promise<StationIdInfo[]> {
-    const url = `http://ws.bus.go.kr/api/rest/stationinfo/getStationByPos?ServiceKey=IfJN7A3cBBPttYf%2FFcFWC8pNDT3mi3SRSsDJmyAXQAUOlqvkQhP4ggZkHzhacIhEEJzcswWo8fraVeUBAOxQng%3D%3D&tmX=${gpsLong}&tmY=${gpsLati}&radius=500&resultType=json`
+    const url = `http://ws.bus.go.kr/api/rest/stationinfo/getStationByPos?ServiceKey=${process.env.BUS_API_KEY}&tmX=${gpsLong}&tmY=${gpsLati}&radius=500&resultType=json`
 
     try {
       const response = await axios.get(url)
@@ -27,7 +27,6 @@ export class BusStopApiService {
           stationId: item.stationId,
         }),
       )
-      console.log(stationsInfo)
       return stationsInfo
     } catch (error) {
       console.error('Error fetching bus station info:', error)
@@ -37,8 +36,8 @@ export class BusStopApiService {
 
   // Fetches bus arrival information for a given station
   async busArrivalInfo(arsId: string): Promise<BusArrivalInfo[]> {
-    const url = `http://ws.bus.go.kr/api/rest/stationinfo/getStationByUid?ServiceKey=IfJN7A3cBBPttYf%2FFcFWC8pNDT3mi3SRSsDJmyAXQAUOlqvkQhP4ggZkHzhacIhEEJzcswWo8fraVeUBAOxQng%3D%3D&arsId=${arsId}&resultType=json`
-
+    const url = `http://ws.bus.go.kr/api/rest/stationinfo/getStationByUid?ServiceKey=${process.env.BUS_API_KEY}&arsId=${arsId}&resultType=json`
+    console.log('url', url)
     try {
       const response = await axios.get(url)
       const data = response.data
