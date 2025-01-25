@@ -8,3 +8,6 @@
 2. `./scripts/start.sh` 명령어로 스크립트를 실행합니다. 도커 컨테이너의 쉘로 진입됩니다.
 3. 도커 컨테이너 내부의 쉘에서 `./scripts/run-server.sh` 스크립트를 실행합니다. 어플리케이션 실행을 위한 세팅 후 서버가 실행됩니다.
    3-1. 백그라운드에서 서버를 실행하려면 `./scripts/background-run-server.sh` 스크립트를 실행합니다. `server.log` 파일에 서버 로그가 저장됩니다.
+
+# 서비스 문서
+https://www.notion.so/7e633c82b7a244c0a5fed6227e397b74?v=186628b210ef806eba43000c280ee292
